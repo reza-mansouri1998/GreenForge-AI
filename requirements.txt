@@ -1,0 +1,34 @@
+# --- Data Engineering & Medallion Data Lake ---
+duckdb
+polars[pyarrow]
+pandera[polars]
+
+# --- Ingestion & External APIs ---
+wetterdienst
+requests
+pandas
+matplotlib
+seaborn
+numpy
+ipykernel
+
+# --- Machine Learning & Operations Research ---
+lightgbm
+xgboost
+scikit-learn
+ortools
+shap
+
+# --- MLOps & Experiment Tracking ---
+mlflow
+
+# --- API & Serving ---
+fastapi
+uvicorn[standard]
+pydantic
+
+# --- Testing & Code Quality ---
+pytest
+ruff
+
+-e .
