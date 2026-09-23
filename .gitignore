@@ -1,7 +1,8 @@
-/data
+/data/
 .vscode
 .tmp
-/logs
+/logs/
+/mlruns/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,6 +1,7 @@
 # --- Data Engineering & Medallion Data Lake ---
 duckdb
 polars[pyarrow]
+polars requests
 pandera[polars]
 
 # --- Ingestion & External APIs ---
@@ -11,6 +12,7 @@ matplotlib
 seaborn
 numpy
 ipykernel
+wetterdienst
 
 # --- Machine Learning & Operations Research ---
 lightgbm
