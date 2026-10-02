@@ -1,70 +1,68 @@
-# src/greenforge_ai/ingestion/smard_client.py
+"""SMARD prices with bounded HTTP requests and retries."""
+
+from __future__ import annotations
+
+import json
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
-import polars as pl
-from pathlib import Path
-import time
-from greenforge_ai.utils.logger import get_logger
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-logger = get_logger(__name__)
+from greenforge_ai.ingestion.dwd_client import HOUR, hourly_table
+from greenforge_ai.utils.logger import LOG
 
-def fetch_smard_day_ahead_prices(output_path: str) -> None:
-    """
-    Fetches Day-Ahead Electricity Prices from the German SMARD API (Bundesnetzagentur).
-    Module ID 4169: Day-Ahead Prices [€/MWh]
-    Region: DE (Germany)
-    Resolution: Hourly
-    """
-    out_file = Path(output_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    logger.info("Connecting to SMARD API for Day-Ahead Prices (DE)...")
-    start_time = time.time()
-    
-    # Corrected region code to "DE"
-    index_url = "https://www.smard.de/app/chart_data/4169/DE/index_hour.json"
-    
-    try:
-        response = requests.get(index_url, timeout=10)
-        response.raise_for_status()
-        timestamps = response.json()["timestamps"]
-        
-        if not timestamps:
-            logger.error("No timestamp index returned from SMARD.")
-            return
-            
-        latest_timestamp = timestamps[-1]
-        
-        # Corrected data URL structure: {filter}/{region}/{filterCopy}_{regionCopy}_{resolution}_{timestamp}.json
-        data_url = f"https://www.smard.de/app/chart_data/4169/DE/4169_DE_hour_{latest_timestamp}.json"
-        
-        logger.info(f"Fetching price data for timestamp index: {latest_timestamp}...")
-        data_response = requests.get(data_url, timeout=10)
-        data_response.raise_for_status()
-        
-        series_data = data_response.json()["series"]
-        
-        df = pl.DataFrame(
-        series_data, 
-        schema=["unix_ms", "DayAhead_Price_EUR_MWh"], 
-        orient="row"
-        )
-        
-        df = df.with_columns(
-            pl.from_epoch("unix_ms", time_unit="ms").alias("WsDateTime")
-        ).drop("unix_ms")
-        
-        df = df.drop_nulls()
-        
-        df.write_parquet(out_file)
-        elapsed = time.time() - start_time
-        logger.info(f"✅ Downloaded {df.shape[0]} price records. Saved to {out_file} in {elapsed:.2f}s.")
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to fetch data from SMARD API: {e}")
-        raise
 
-if __name__ == "__main__":
-    logger.info("Starting SMARD Ingestion Pipeline...")
-    fetch_smard_day_ahead_prices(
-        output_path="data/raw/extracted/SMARD_DayAhead_Prices.parquet"
+def session():
+    s = requests.Session()
+    s.mount(
+        "https://",
+        HTTPAdapter(
+            max_retries=Retry(
+                total=4,
+                backoff_factor=0.5,
+                status_forcelist=(429, 500, 502, 503, 504),
+                allowed_methods={"GET"},
+                respect_retry_after_header=False,
+            )
+        ),
     )
+    s.headers["User-Agent"] = "GreenForge-ETL/2.0 (historical-energy-research)"
+    return s
+
+
+def get_json(s, url):
+    with s.get(url, timeout=(10, 30), stream=True) as response:
+        response.raise_for_status()
+        chunks, size = [], 0
+        for block in response.iter_content(65536):
+            size += len(block)
+            if size > 10 * 2**20:
+                raise ValueError("External response exceeds 10 MiB")
+            chunks.append(block)
+    return json.loads(b"".join(chunks))
+
+
+def fetch_smard(start, end, workers=2):
+    base = "https://www.smard.de/app/chart_data/4169/DE"
+    with session() as s:
+        index = get_json(s, base + "/index_hour.json")
+    targets = sorted({int(t) for t in index["timestamps"] if start - 14 * 24 * HOUR <= int(t) < end})
+    if not targets or len(targets) > 400:
+        raise ValueError("Unexpected SMARD index size")
+
+    def chunk(t):
+        with session() as s:
+            rows = get_json(s, base + f"/4169_DE_hour_{t}.json")["series"]
+        if len(rows) > 20000:
+            raise ValueError("Unexpected SMARD chunk size")
+        return rows
+
+    rows = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for i, part in enumerate(pool.map(chunk, targets)):
+            rows.extend(part)
+            if len(rows) > 1_000_000:
+                raise ValueError("Unexpected SMARD annual response size")
+            LOG.info("SMARD chunk=%d/%d", i + 1, len(targets))
+    return hourly_table(rows, start, end, "DayAhead_Price_EUR_MWh")
