@@ -1,51 +1,76 @@
-import polars as pl
-from pathlib import Path
-import time
-from greenforge_ai.utils.logger import get_logger
-from wetterdienst.provider.dwd.observation import DwdObservationRequest
+"""DWD observations and shared normalization of hourly external readings."""
 
-logger = get_logger(__name__)
+from __future__ import annotations
 
-def fetch_dwd_weather_data(output_path: str, station_id: str = "01420") -> None:
-    """
-    Fetches historical hourly weather data (Temperature) from DWD (Deutscher Wetterdienst).
-    Default station: 01420 (Frankfurt/Main - central industrial hub).
-    """
-    out_file = Path(output_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Connecting to DWD API for Station {station_id}...")
-    start_time = time.time()
-    
-    try:
-        request = DwdObservationRequest(
-            parameters=[("hourly", "temperature_air")],
-            periods=["recent"]
-        ).filter_by_station_id(station_id=[station_id])
-        
-        values_df = request.values.all().df.to_pandas()
-        df = pl.from_pandas(values_df)
-        
-        # FIX: Cast the Categorical column to String before applying .str.contains()
-        df = df.filter(pl.col("parameter").cast(pl.String).str.contains("temperature_air_mean"))
-        
-        df = df.with_columns(
-            pl.col("date").dt.cast_time_unit("ms").alias("WsDateTime"),
-            pl.col("value").alias("Air_Temperature_C")
-        ).select(["WsDateTime", "Air_Temperature_C"])
-        
-        df = df.drop_nulls()
-        
-        df.write_parquet(out_file)
-        elapsed = time.time() - start_time
-        logger.info(f"✅ Downloaded {df.shape[0]} DWD weather records. Saved to {out_file} in {elapsed:.2f}s.")
-        
-    except Exception as e:
-        logger.error(f"Failed to fetch data from DWD API: {e}")
-        raise
+import numpy as np
+import pandas as pd
+import pyarrow as pa
 
-if __name__ == "__main__":
-    logger.info("Starting DWD Weather Ingestion Pipeline...")
-    fetch_dwd_weather_data(
-        output_path="data/raw/extracted/DWD_Temperature.parquet"
+HOUR = 3_600_000
+
+
+def hourly_table(rows, start, end, column, sentinel=None):
+    grid = np.arange(start // HOUR * HOUR, ((end + HOUR - 1) // HOUR) * HOUR, HOUR, dtype=np.int64)
+    values = np.full(len(grid), np.nan)
+    conflicts = np.zeros(len(grid), dtype=bool)
+    duplicates = 0
+    for timestamp, raw in rows:
+        if timestamp is None or int(timestamp) != timestamp or int(timestamp) % HOUR:
+            raise ValueError("Expected exact hourly UTC external timestamps")
+        pos = (int(timestamp) - grid[0]) // HOUR
+        if not 0 <= pos < len(grid) or raw is None:
+            continue
+        value = float(raw)
+        if not np.isfinite(value) or value == sentinel:
+            continue
+        if np.isfinite(values[pos]):
+            duplicates += 1
+            conflicts[pos] |= not np.isclose(values[pos], value, rtol=0, atol=1e-9)
+        else:
+            values[pos] = value
+    values[conflicts] = np.nan
+    if not np.isfinite(values).any():
+        raise ValueError(f"No usable {column} observations")
+    table = pa.table(
+        {
+            "WsDateTime": pa.array(grid, type=pa.timestamp("ms", tz="UTC")),
+            column: pa.array(values, mask=~np.isfinite(values), type=pa.float32()),
+        }
     )
+    return table, {
+        "rows": len(grid),
+        "missing_hours": int((~np.isfinite(values)).sum()),
+        "conflicting_hours": int(conflicts.sum()),
+        "duplicates": duplicates,
+    }
+
+
+def fetch_dwd(start, end, station):
+    from wetterdienst import Settings
+    from wetterdienst.provider.dwd.observation import DwdObservationRequest
+
+    request = DwdObservationRequest(
+        parameters=[("hourly", "temperature_air", "temperature_air_mean_2m")],
+        start_date=pd.Timestamp(start, unit="ms", tz="UTC").isoformat(),
+        end_date=pd.Timestamp(end, unit="ms", tz="UTC").isoformat(),
+        settings=Settings(
+            ts_convert_units=False,
+            ts_drop_nulls=False,
+            fsspec_client_kwargs={"timeout": 30, "trust_env": True},
+        ),
+    ).filter_by_station_id(station_id=(str(station).zfill(5),))
+    frame = request.values.all().df
+    raw = frame.to_arrow() if hasattr(frame, "to_arrow") else pa.Table.from_pandas(frame)
+    if raw.num_rows > 30000:
+        raise ValueError("Unexpected DWD station/year response size")
+    rows = []
+    for row in raw.to_pylist():
+        if str(row.get("station_id", station)).zfill(5) != str(station).zfill(5):
+            continue
+        if row["parameter"] not in {"temperature_air_mean_2m", "temperature_air_mean"}:
+            continue
+        stamp = pd.Timestamp(row["date"])
+        if stamp.tz is None:
+            raise ValueError("DWD timestamp is missing its timezone")
+        rows.append((int(stamp.timestamp() * 1000), row["value"]))
+    return hourly_table(rows, start, end, "Air_Temperature_C", sentinel=-999)
