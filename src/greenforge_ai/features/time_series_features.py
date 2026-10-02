@@ -1,58 +1,97 @@
-import polars as pl
-from pathlib import Path
-import time
-from greenforge_ai.utils.logger import get_logger
+"""Observed quarter-hour aggregation and leakage-aware forecasting windows."""
 
-logger = get_logger(__name__)
+from __future__ import annotations
 
-def generate_temporal_features(input_path: str, output_path: str, target_cols: list[str], time_col: str = "WsDateTime") -> None:
-    """
-    Engineers cyclical time features and rolling window metrics.
-    """
-    in_file = Path(input_path)
-    out_file = Path(output_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Generating time-series features for {in_file.name}...")
-    start_time = time.time()
-    
-    try:
-        lf = pl.scan_parquet(in_file)
-        
-        # 1. Cyclical Time Features
-        lf = lf.with_columns([
-            pl.col(time_col).dt.hour().alias("hour_of_day"),
-            pl.col(time_col).dt.weekday().alias("day_of_week"),
-            pl.col(time_col).dt.month().alias("month_of_year")
-        ])
-        
-        # 2. Rolling Metrics & Lags (Based on strict 5s intervals = 180 rows per 15m)
-        lf = lf.with_columns([
-            pl.col(target_cols).rolling_mean(window_size=180).name.suffix("_roll_mean_15m"),
-            pl.col(target_cols).rolling_std(window_size=180).name.suffix("_roll_std_15m"),
-            pl.col(target_cols).shift(12).name.suffix("_lag_1m") # 1-minute lag
-        ])
-        
-        # Drop the initial nulls created by the 180-row lookback
-        lf = lf.drop_nulls()
-        
-        lf.sink_parquet(out_file)
-        elapsed = time.time() - start_time
-        logger.info(f"✅ Time-series features saved to {out_file} in {elapsed:.2f}s.")
-        
-    except Exception as e:
-        logger.error(f"Time-series feature generation failed: {e}")
-        raise
+import numpy as np
+import pandas as pd
 
-if __name__ == "__main__":
-    logger.info("Starting Time-Series Feature Pipeline...")
-    generate_temporal_features(
-        input_path="data/processed/cleaned/IPE_PV_imputed.parquet", 
-        output_path="data/processed/features/IPE_PV_time_features.parquet",
-        target_cols=["AC_ActivePower"]
+from greenforge_ai.features.interaction_features import interval_values
+
+INTERVAL_MS = 900_000
+
+
+class QuarterHour:
+    def __init__(self):
+        self.rows = []
+        self.tail_t = np.empty(0, dtype=np.int64)
+        self.tail_v = np.empty(0)
+
+    def update(self, ticks, values):
+        ticks, values = np.r_[self.tail_t, ticks], np.r_[self.tail_v, values]
+        stop = np.searchsorted(ticks // INTERVAL_MS, ticks[-1] // INTERVAL_MS, side="left")
+        if stop:
+            self._aggregate(ticks[:stop], values[:stop])
+        self.tail_t, self.tail_v = ticks[stop:], values[stop:]
+
+    def _aggregate(self, ticks, values):
+        unique, starts, sizes = np.unique(
+            ticks // INTERVAL_MS * INTERVAL_MS, return_index=True, return_counts=True
+        )
+        valid = np.isfinite(values)
+        counts = np.add.reduceat(valid.astype(np.int64), starts)
+        sums = np.add.reduceat(np.where(valid, values, 0.0), starts)
+        for t, n, total, size in zip(unique, counts, sums, sizes):
+            self.rows.append(
+                (
+                    int(t),
+                    int(n),
+                    float(total / n) if n else np.nan,
+                    float(total / n) if n == 180 and size == 180 else np.nan,
+                )
+            )
+
+    def finish(self):
+        if len(self.tail_t):
+            self._aggregate(self.tail_t, self.tail_v)
+            self.tail_t = np.empty(0, dtype=np.int64)
+        return pd.DataFrame(self.rows, columns=["tick_ms", "observed_samples", "observed_mean_w", "power_w"])
+
+
+def make_training_frame(frame, external, cfg):
+    history, horizon = cfg["history_intervals"], cfg["horizon_intervals"]
+    step = pd.Timedelta(minutes=15)
+    origin = frame.WsDateTime + step
+    p = frame.power_kw
+    out = pd.DataFrame(
+        {
+            "WsDateTime": origin,
+            "Feature_Window_Start": origin - history * step,
+            "Target_Start": frame.WsDateTime + horizon * step,
+            "Target_End": frame.WsDateTime + (horizon + 1) * step,
+            "power_last_15m_kw": p,
+            "power_previous_15m_kw": p.shift(1),
+            "power_history_mean_kw": p.rolling(history, min_periods=history).mean(),
+            "power_history_std_kw": p.rolling(history, min_periods=history).std(ddof=0),
+            "target_power_kw": p.shift(-horizon),
+        }
     )
-    generate_temporal_features(
-        input_path="data/processed/cleaned/TEC_48S_imputed.parquet", 
-        output_path="data/processed/features/TEC_48S_time_features.parquet",
-        target_cols=["Angle_U1"]
-    )
+    ticks = origin.dt.as_unit("ms").astype("int64").to_numpy()
+    target_ticks = out.Target_Start.dt.as_unit("ms").astype("int64").to_numpy()
+    out["previous_hour_temperature_c"] = interval_values(external["DWD"], ticks, delay_ms=3_600_000)
+    out["target_day_ahead_price_eur_mwh"] = interval_values(external["SMARD"], target_ticks)
+    local = out.Target_Start.dt.tz_convert("Europe/Berlin")
+    hour = local.dt.hour + local.dt.minute / 60
+    out["hour_sin"], out["hour_cos"] = np.sin(2 * np.pi * hour / 24), np.cos(2 * np.pi * hour / 24)
+    out["day_of_week"] = local.dt.dayofweek.astype("int8")
+    # Use actual target coverage: an annual split would leave Jan-Apr PV with no test set.
+    observed = frame.loc[p.notna(), "WsDateTime"]
+    if observed.empty:
+        out["split"] = pd.Series(dtype="string")
+        return out.iloc[:0]
+    start, end = observed.iloc[0], observed.iloc[-1] + step
+    first, second = start + (end - start) * 0.7, start + (end - start) * 0.85
+    split = np.full(len(out), "purged", dtype=object)
+    split[out.Target_End <= first] = "train"
+    split[(out.Feature_Window_Start >= first) & (out.Target_End <= second)] = "validation"
+    split[out.Feature_Window_Start >= second] = "test"
+    out["split"] = split
+    eligible = out.loc[out.split != "purged"]
+    diagnostics = {
+        "candidate_windows": len(eligible),
+        "missing_by_column": {name: int(count) for name, count in eligible.isna().sum().items() if count},
+    }
+    out = eligible.dropna().reset_index(drop=True)
+    out.attrs["window_diagnostics"] = diagnostics
+    for column in out.select_dtypes("float"):
+        out[column] = out[column].astype("float32")
+    return out
