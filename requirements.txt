@@ -13,10 +13,13 @@ seaborn
 numpy
 ipykernel
 wetterdienst
+plotly
+nbformat
 
 # --- Machine Learning & Operations Research ---
 lightgbm
 xgboost
+catboost
 scikit-learn
 ortools
 shap
@@ -33,4 +36,4 @@ pydantic
 pytest
 ruff
 
--e .
+# -e .

@@ -1,38 +1,91 @@
-import sys
+# src/greenforge_ai/utils/exceptions.py
 
-def extract_detailed_traceback(error: Exception, error_detail: sys) -> str:
+from __future__ import annotations
+
+import sys
+from types import TracebackType
+from typing import Optional, Union
+
+
+def extract_detailed_traceback(
+    error: Union[BaseException, str],
+    exc_tb: Optional[TracebackType] = None,
+) -> str:
     """
-    Extracts the exact file name and line number from the traceback.
-    Adopted from standard ML boilerplate, optimized for modern pipelines.
+    Return a clear error message with the deepest available source location.
+
+    If called inside an ``except`` block, the active traceback is used
+    automatically. A traceback may also be passed explicitly.
+
+    Examples:
+        try:
+            ...
+        except Exception as exc:
+            raise DataIngestionError(exc) from exc
+
+        raise MissingDataError("Expected telemetry file is missing")
     """
-    _, _, exc_tb = error_detail.exc_info()
-    
-    if exc_tb is not None:
-        file_name = exc_tb.tb_frame.f_code.co_filename
-        line_number = exc_tb.tb_lineno
-        return f"Script [{file_name}] at line [{line_number}]: {str(error)}"
-    
-    return str(error)
+    message = str(error)
+
+    # Prefer an explicitly supplied traceback.
+    tb = exc_tb
+
+    # If an exception object already carries its traceback, use it.
+    if tb is None and isinstance(error, BaseException):
+        tb = error.__traceback__
+
+    # Fall back to the currently handled exception, if any.
+    if tb is None:
+        _, _, tb = sys.exc_info()
+
+    if tb is None:
+        return message
+
+    # Walk to the deepest frame: this is the line where the failure originated.
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+
+    frame = tb.tb_frame
+    file_name = frame.f_code.co_filename
+    function_name = frame.f_code.co_name
+    line_number = tb.tb_lineno
+
+    return f"Script [{file_name}] | Function [{function_name}] | Line [{line_number}]: {message}"
+
 
 class GreenForgeBaseError(Exception):
-    """Base exception that automatically formats tracebacks for all child errors."""
-    def __init__(self, error_message: str):
-        # Automatically grab the current sys.exc_info() when raised
-        detailed_message = extract_detailed_traceback(error_message, sys)
-        super().__init__(detailed_message)
-        self.error_message = detailed_message
+    """
+    Base exception for GreenForge pipeline errors.
 
-    def __str__(self):
+    Accepts either a normal message or an existing exception. When an existing
+    exception is provided, its traceback location is preserved in the formatted
+    message.
+    """
+
+    def __init__(self, error: Union[BaseException, str]):
+        self.original_error = error if isinstance(error, BaseException) else None
+        self.error_message = extract_detailed_traceback(error)
+        super().__init__(self.error_message)
+
+    def __str__(self) -> str:
         return self.error_message
+
 
 class DataIngestionError(GreenForgeBaseError):
     """Raised when raw data fails to extract, download, or decompress."""
-    pass
+
 
 class DuckDBExecutionError(GreenForgeBaseError):
     """Raised when an out-of-core DuckDB SQL join or transformation fails."""
-    pass
+
 
 class MissingDataError(GreenForgeBaseError):
-    """Raised when an expected critical file or table is missing from the data lake."""
-    pass
+    """Raised when an expected critical file or table is missing."""
+
+
+class DataValidationError(GreenForgeBaseError):
+    """Raised when processed data violates a required validation contract."""
+
+
+class DataTransformationError(GreenForgeBaseError):
+    """Raised when a transformation or feature-engineering stage fails."""
