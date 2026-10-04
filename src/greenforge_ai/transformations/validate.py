@@ -159,7 +159,7 @@ class Relationships:
         row["sum_left"] += float(a.sum())
         row["sum_right"] += float(b.sum())
         row["outside_tolerance"] += int(
-            (abs(a - b) > 0.2 * np.maximum(np.maximum(abs(a), abs(b)), 1e-6)).sum()
+            (abs(a - b) > np.maximum(1.0, 0.2 * np.maximum(abs(a), abs(b)))).sum()
         )
 
     def update(self, data):
@@ -185,7 +185,11 @@ class Relationships:
                 **row,
                 "mean_left": a,
                 "mean_right": b,
-                "status": "passed" if abs(a - b) <= 0.2 * max(abs(a), abs(b), 1e-6) else "review_required",
+                "violation_fraction": row["outside_tolerance"] / row["support"],
+                "relative_tolerance": 0.2,
+                "absolute_tolerance": 1.0,
+                "allowed_violation_fraction": 0.05,
+                "status": "passed" if row["outside_tolerance"] / row["support"] <= 0.05 else "review_required",
             }
         return {
             "checks": checks,
