@@ -240,3 +240,4 @@ def make_training_frame(frame, external, cfg):
         "price_policy": "not a predictor; keep SMARD in EDA and scheduling",
         "target_policy": "never impute; full daily grids retained"}
     return out
+.
