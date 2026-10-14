@@ -19,4 +19,4 @@ setup(
     packages=find_packages(where="src"),
     install_requires=get_requirements("requirements.txt"),
     python_requires=">=3.12",
-)..
+).
