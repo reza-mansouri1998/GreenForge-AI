@@ -417,4 +417,4 @@ def normalize_sensor(path, destination, timezone, cfg):
     finally:
         unsorted.unlink(missing_ok=True)
         distance_path.unlink(missing_ok=True)
-        tie_path.unlink(missing_ok=True)...
+        tie_path.unlink(missing_ok=True)..
