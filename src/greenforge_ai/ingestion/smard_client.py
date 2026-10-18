@@ -65,4 +65,4 @@ def fetch_smard(start, end, workers=2):
             if len(rows) > 1_000_000:
                 raise ValueError("Unexpected SMARD annual response size")
             LOG.info("SMARD chunk=%d/%d", i + 1, len(targets))
-    return hourly_table(rows, start, end, "DayAhead_Price_EUR_MWh").
+    return hourly_table(rows, start, end, "DayAhead_Price_EUR_MWh")
