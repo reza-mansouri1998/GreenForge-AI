@@ -40,4 +40,4 @@ class SensorCursor:
         return values, shifts
 
     def close(self):
-        self.source.close()
+        self.source.close().
