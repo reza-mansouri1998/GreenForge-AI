@@ -114,4 +114,4 @@ def stage(name, logger: logging.Logger | None = None):
         logger.exception("FAILED %s", name)
         raise
     else:
-        logger.info("DONE %s | seconds=%.2f | RSS=%.1f MiB", name, time.monotonic() - start, rss_mib()).
+        logger.info("DONE %s | seconds=%.2f | RSS=%.1f MiB", name, time.monotonic() - start, rss_mib())..
