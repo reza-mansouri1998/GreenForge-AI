@@ -98,3 +98,4 @@ def make_training_frame(frame, external, cfg):
     for column in out.select_dtypes("float"):
         out[column] = out[column].astype("float32")
     return out
+.
