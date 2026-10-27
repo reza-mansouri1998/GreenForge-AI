@@ -63,9 +63,14 @@ def load_eda(system, root=None):
 
 def scan_measurements(system, columns, start, end, root=None):
     start, end = pd.Timestamp(start), pd.Timestamp(end)
-    if not columns or start.tz is None or end.tz is None or end <= start:
-        raise ValueError("Choose columns and ordered timezone-aware dates")
+    if not columns or end <= start:
+        raise ValueError("Choose columns and ordered dates")
     dataset = ds.dataset(artifact(system, "cleaned.parquet", root), format="parquet")
+    field = dataset.schema.field("WsDateTime").type
+    if field.tz is None and (start.tz is not None or end.tz is not None):
+        raise ValueError("Publisher wall-clock dataset requires naive date bounds")
+    if field.tz is not None and (start.tz is None or end.tz is None):
+        raise ValueError("UTC dataset requires timezone-aware date bounds")
     condition = (ds.field("WsDateTime") >= start.to_pydatetime()) & (
         ds.field("WsDateTime") < end.to_pydatetime()
     )
@@ -82,6 +87,9 @@ def plant_comparison(root=None):
     machine, solar = load_eda("TEC_48S", root), load_eda("IPE_PV", root)
     if "power_kw" not in machine or "power_kw" not in solar:
         raise ValueError("Plant analysis requires resolved machine AND solar power units")
+    if "DayAhead_Price_EUR_MWh" not in machine:
+        raise ValueError("Grid-price comparison requires explicit UTC alignment; "
+                         "publisher wall-clock data have no reliable price join")
     out = machine[["WsDateTime", "power_kw", "DayAhead_Price_EUR_MWh"]].merge(
         solar[["WsDateTime", "power_kw"]],
         on="WsDateTime",
@@ -97,3 +105,4 @@ def plant_comparison(root=None):
         out[["power_kw_machine", "power_kw_solar", "DayAhead_Price_EUR_MWh"]]
     ).all(axis=1)
     return out
+.
