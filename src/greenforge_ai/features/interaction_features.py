@@ -105,3 +105,4 @@ def plant_comparison(root=None):
         out[["power_kw_machine", "power_kw_solar", "DayAhead_Price_EUR_MWh"]]
     ).all(axis=1)
     return out
+.
