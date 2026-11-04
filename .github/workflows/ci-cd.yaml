@@ -1,0 +1,134 @@
+# GreenForge AI — lightweight continuous integration.
+# Historical application: never download telemetry, retrain models, or deploy on CI.
+name: GreenForge AI CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ci-cd.yaml'
+      - 'app/**'
+      - 'src/**'
+      - 'tests/unit/**'
+      - 'docker/**'
+      - 'pytest.ini'
+      - 'setup.py'
+      - 'requirements.txt'
+      - 'etl_config.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/ci-cd.yaml'
+      - 'app/**'
+      - 'src/**'
+      - 'tests/unit/**'
+      - 'docker/**'
+      - 'pytest.ini'
+      - 'setup.py'
+      - 'requirements.txt'
+      - 'etl_config.json'
+  workflow_dispatch:
+
+# Tests and builds do not need write access, tokens, or deployment secrets.
+permissions:
+  contents: read
+
+# Avoid wasting runner time on superseded commits.
+concurrency:
+  group: greenforge-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit tests (Python 3.14)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+      PYTHONDONTWRITEBYTECODE: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: docker/requirements-api.txt
+
+      # Deliberately install only what the 63 isolated unit tests import.
+      # Avoid MLflow, training trackers, CatBoost, notebooks, ETL clients and data.
+      - name: Install unit-test dependencies
+        run: |
+          python -m pip install \
+            'pytest>=9,<10' \
+            'httpx>=0.28,<1' \
+            'fastapi>=0.116,<1' \
+            'numpy>=2.2,<3' \
+            'pandas>=2.3,<4' \
+            'pyarrow>=19,<25' \
+            'scikit-learn>=1.7,<2' \
+            'scipy>=1.15,<2' \
+            'threadpoolctl>=3,<4'
+
+      - name: Validate Python syntax
+        run: python -m compileall -q app src/greenforge_ai tests/unit
+
+      - name: Run fast, isolated unit tests
+        run: python -m pytest tests/unit -q
+
+  docker-build:
+    name: Validate lightweight Docker images
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate Compose configuration
+        run: docker compose -f docker/compose.yaml config --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Build only: no registry push, no Docker run, no 2024 data or MLflow DB.
+      # The Dockerfile-specific ignore file sends only runtime source to BuildKit.
+      - name: Build FastAPI image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: api
+          push: false
+          cache-from: type=gha,scope=greenforge-api
+          cache-to: type=gha,mode=max,scope=greenforge-api
+
+      - name: Build Streamlit image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: dashboard
+          push: false
+          cache-from: type=gha,scope=greenforge-dashboard
+          cache-to: type=gha,mode=max,scope=greenforge-dashboard
+
+      - name: Build MLflow database preparation image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: mlflow-init
+          push: false
+          cache-from: type=gha,scope=greenforge-mlflow-init
+          cache-to: type=gha,mode=max,scope=greenforge-mlflow-init
