@@ -1,0 +1,22 @@
+# Strict allowlist: the Docker build never sends historical reports, raw datasets,
+# MLflow artifacts, notebooks, venv, tests, logs or git history to the daemon.
+**
+!docker/
+!docker/Dockerfile
+!docker/Dockerfile.dockerignore
+!docker/requirements-api.txt
+!docker/requirements-dashboard.txt
+!docker/prepare_mlflow.py
+!app/
+!app/main.py
+!app/streamlit_app.py
+!src/
+!src/greenforge_ai/
+!src/greenforge_ai/training/
+!src/greenforge_ai/training/train_forecasting.py
+!src/greenforge_ai/training/validation.py
+!src/greenforge_ai/training/evaluation.py
+!src/greenforge_ai/features/
+!src/greenforge_ai/features/interaction_features.py
+!src/greenforge_ai/ingestion/
+!src/greenforge_ai/ingestion/dwd_client.py

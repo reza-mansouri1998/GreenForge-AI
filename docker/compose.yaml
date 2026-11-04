@@ -1,0 +1,105 @@
+name: greenforge-ai
+
+services:
+  # Runs once; rewrites artifact URIs only inside a portable *copy* of tracking.db.
+  mlflow-prepare:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: mlflow-init
+    volumes:
+      - type: bind
+        source: ../mlruns/tracking.db
+        target: /source/tracking.db
+        read_only: true
+      - mlflow_portable:/app/mlruns
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    depends_on:
+      mlflow-prepare:
+        condition: service_completed_successfully
+    init: true
+    restart: unless-stopped
+    environment:
+      GREENFORGE_PROJECT_ROOT: /app
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "2"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - type: bind
+        source: ../reports/ml_short_term/application_runs
+        target: /app/reports/ml_short_term/application_runs
+        read_only: true
+      - mlflow_portable:/app/mlruns
+      - type: bind
+        source: ../mlruns/artifacts
+        target: /app/mlflow_artifacts
+        read_only: true
+      - type: bind
+        source: ../logs/application
+        target: /app/logs/application
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).close()"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt: ["no-new-privileges:true"]
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: dashboard
+    depends_on:
+      api:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    environment:
+      GREENFORGE_API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:8501:8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3).close()"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt: ["no-new-privileges:true"]
+
+  # Optional: local MLflow UI. Not needed for FastAPI or Streamlit to work.
+  # Use: docker compose --profile tracking up -d
+  mlflow:
+    profiles: ["tracking"]
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    depends_on:
+      mlflow-prepare:
+        condition: service_completed_successfully
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri
+      - sqlite:////app/mlruns/tracking.db
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow_portable:/app/mlruns
+      - type: bind
+        source: ../mlruns/artifacts
+        target: /app/mlflow_artifacts
+        read_only: true
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  mlflow_portable:

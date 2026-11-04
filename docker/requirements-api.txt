@@ -1,0 +1,15 @@
+# FastAPI + inference for the two selected, pre-trained models (TEC LightGBM, PV Ridge).
+# MLflow's local models use SKOPS; the source tracking DB uses SQLAlchemy.
+# No ETL, notebook, experiment training, or general-purpose research dependencies.
+fastapi>=0.116,<1
+uvicorn>=0.35,<1
+numpy>=2.2,<3
+pandas>=2.3,<4
+pyarrow>=19,<25
+scikit-learn>=1.7,<2
+lightgbm>=4.6,<5
+skops>=0.13,<1
+mlflow-skinny==3.16.1
+sqlalchemy>=2.0,<3
+alembic>=1.14,<2
+sqlparse>=0.5,<1
