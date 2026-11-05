@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -44,6 +45,8 @@ class Rule:
     lower: float | None = None
     upper: float | None = None
     status: str = "documented"
+    reject_zero: bool = False
+    reject_float32_subnormal: bool = False
 
     def clean(self, values):
         with np.errstate(over="ignore", invalid="ignore"):
@@ -53,6 +56,10 @@ class Rule:
             bad |= np.isfinite(result) & (result < self.lower)
         if self.upper is not None:
             bad |= np.isfinite(result) & (result > self.upper)
+        if self.reject_zero:
+            bad |= np.isfinite(result) & (result == 0.0)
+        if self.reject_float32_subnormal:
+            bad |= np.isfinite(result) & (np.abs(result) < np.finfo(np.float32).tiny)
         result[bad | ~np.isfinite(result)] = np.nan
         return result, bad
 
@@ -141,6 +148,145 @@ def rule_for(name, system):
     return rule
 
 
+def publisher_rule_for(name, system):
+    """Only documented transformations, not inferred equipment-nameplate clipping.
+
+    Unknown publisher operations are deliberately marked for review. The
+    publisher's outlier checks (after formatting and rescaling) explicitly
+    use 207.85..254.03 V and 360..440 V for most equipment.
+    """
+    if system["input_profile"] == "spark_cleaned":
+        # Already publisher-cleaned: never clean a second time.
+        return Rule(None, status="official_cleaned_passthrough")
+    factor, status, unit = 1.0, "publisher_unverified", None
+    reject_zero = False
+    reject_float32_subnormal = False
+    if re.fullmatch(r"THD_I[123N]|I[123N]_h(?:[2-5]|7|9|11|13|15|17|19|21|23|25|27|29|31)", name):
+        # TEC_48S 2024 parity diagnostics: aligned raw I1_h2=56 and
+        # THD_I1=430 correspond to cleaned publisher values 0.56 and 4.3.
+        # Full-year comparisons confirm an additional tenfold reduction for
+        # those channels. Apply the conversion ONCE to the aligned raw value;
+        # audit other harmonic members before claiming whole-family parity.
+        if system["id"] == "TEC_48S":
+            factor, status, unit = 0.01, "tec_2024_current_harmonics_div100_calibrated", "%"
+        else:
+            factor, status, unit = 0.1, "publisher_current_harmonics_div10", "%"
+    if system["id"].startswith("TEC_") and re.fullmatch(r"THD_U(?:[123]|12|23|31)|U(?:[123]|12|23|31)_h[2-5]", name):
+        factor, status, unit = 0.1, "publisher_tec_voltage_harmonics_div10", "%"
+    if system["id"] == "TEC_48S" and name in {
+        "U1_f", "U2_f", "U3_f", "U12_f", "U23_f", "U31_f",
+        "U_line_avg_f", "U_phase_avg_f",
+    }:
+        reject_zero = True
+        status = "publisher_tec_voltage_fundamental_zero_missing"
+    if system["id"] == "TEC_48S" and name in {"U_line_avg", "U_phase_avg"}:
+        # Remaining publisher-null values are zero or float32 subnormals.
+        reject_float32_subnormal = True
+        status = "publisher_tec_voltage_average_subnormal_missing"
+    if (
+        system["id"] == "TEC_48S"
+        and system.get("input_profile") == "spark_raw"
+        and system.get("publisher_reference_year") == 2024
+        and name == "IN_h3"
+    ):
+        # Complete 2024 TEC_48S parity evidence shows publisher-null values
+        # are exactly the strictly-above-15 percent population. This is an
+        # empirically inferred compatibility rule, not a universal limit.
+        status = "publisher_tec_2024_in_h3_upper_bound_inferred"
+    if system["id"] in {"EPI_PV", "IPE_PV"} and name == "AC_ActivePower":
+        factor, status, unit = 1000., "publisher_pv_kw_to_w", "W"
+    if name == "DailyYield" and system["id"] in {"EPI_PV", "IPE_PV"}:
+        status, unit = "publisher_daily_yield_wh", "Wh"
+    if name == "P_total" and system["id"].startswith("TEC_"):
+        # Publisher's TEC meter catalog specifies W; EPI machines use other units.
+        status, unit = "publisher_tec_active_power_w", "W"
+    if name in REFERENCE_CHANNELS:
+        return Rule("%", status="publisher_excluded_reference")
+    lower = upper = None
+    if (
+        system["id"] == "TEC_48S"
+        and system.get("input_profile") == "spark_raw"
+        and system.get("publisher_reference_year") == 2024
+        and name == "IN_h3"
+    ):
+        upper = 15.0
+    elif re.fullmatch(r"U[123]", name):
+        lower, upper, unit = (207., 253., "V") if system["id"] in {
+            "EPI_PickAndPlace", "EPI_ScreenPrinter"} else (207.85, 254.03, "V")
+        status = "publisher_voltage_outlier_band"
+    elif re.fullmatch(r"U(?:12|23|31)", name):
+        lower, upper, unit = (358.53, 438.21, "V") if system["id"] in {
+            "EPI_PickAndPlace", "EPI_ScreenPrinter"} else (360., 440., "V")
+        status = "publisher_voltage_outlier_band"
+    elif name in {"Freq", "Freq_f"}:
+        # Publisher 13_Outlier_Detection.LIMITS_BY_RANGE: [49, 51] Hz.
+        lower, upper, unit, status = 49., 51., "Hz", "publisher_frequency_outlier_band"
+    elif re.fullmatch(r"LoadType[123](?:_f)?", name):
+        lower, upper, unit, status = -1., 1., "dimensionless", "publisher_load_type_bounds"
+    elif re.fullmatch(r"Angle_(?:U[123]|UI[123])(?:_f)?", name):
+        lower, upper, unit, status = -180., 180., "degree", "publisher_angle_bounds"
+    elif name == "OpHours":
+        # Notebook shows these general outlier thresholds, but coverage varies.
+        lower, upper, unit, status = 2000., 25000., "h", "publisher_operating_hours_outlier_band"
+    if name in system.get("scale_factors", {}):
+        factor = float(system["scale_factors"][name])
+        if not np.isfinite(factor) or factor <= 0:
+            raise ValueError(f"Invalid scale for {name}")
+        status = "user_override_requires_reference_check"
+    if name in system.get("limits", {}):
+        lower, upper = system["limits"][name]
+        if lower is not None and upper is not None and lower > upper:
+            raise ValueError(f"Reversed limits for {name}")
+        status = "user_override_requires_reference_check"
+    return Rule(unit, factor, lower, upper, status, reject_zero, reject_float32_subnormal)
+
+
+def publisher_availability_end_ms(system, cfg, names):
+    """Return dataset-specific last-valid grid ticks for active availability rules.
+
+    These are *empirical 2024 reference-availability constraints*, not
+    electrical outlier limits. The source files remain untouched and the
+    policy is inactive for other years, UTC-instant mode and other systems.
+    """
+    policy = system.get("publisher_availability")
+    if policy is None:
+        return {}
+    if not isinstance(policy, dict) or policy.get("policy_version") != 1:
+        raise ValueError("Unsupported publisher availability policy")
+    if not isinstance(policy.get("reference_year"), int):
+        raise ValueError("publisher_availability.reference_year must be an integer")
+    if policy.get("timestamp_mode") != "publisher_wall_clock":
+        raise ValueError("Publisher availability timestamps must use wall-clock mode")
+    if policy.get("input_profile") != "spark_raw":
+        raise ValueError("Publisher availability policy must specify spark_raw")
+    ends = policy.get("end_inclusive")
+    if not isinstance(ends, dict) or not ends:
+        raise ValueError("Publisher availability end_inclusive must be a nonempty mapping")
+    if (cfg.get("timestamp_mode") != "publisher_wall_clock"
+            or cfg.get("year") != policy["reference_year"]):
+        return {}
+    if system["id"] != "TEC_48S" or system["input_profile"] != "spark_raw":
+        raise ValueError("Publisher availability policy is scoped to TEC_48S raw data")
+    if set(ends) - set(names):
+        raise ValueError(f"Availability rule names missing channels: {set(ends) - set(names)}")
+    epoch = datetime(1970, 1, 1)
+    result = {}
+    for name, raw_end in ends.items():
+        if not isinstance(raw_end, str):
+            raise ValueError(f"Availability timestamp for {name} must be a string")
+        try:
+            dt = datetime.fromisoformat(raw_end)
+        except ValueError as exc:
+            raise ValueError(f"Invalid availability timestamp for {name}") from exc
+        if dt.tzinfo is not None or dt.year != policy["reference_year"]:
+            raise ValueError(f"Availability timestamp for {name} must be a naive date in the reference year")
+        offset = dt - epoch
+        if offset % timedelta(seconds=5) != timedelta(0):
+            raise ValueError(f"Availability timestamp for {name} must align to the five-second grid")
+        result[name] = offset // timedelta(milliseconds=1)
+    return result
+
+
 class Relationships:
     """Coincident valid measurements only; do not 'repair' a failed physical equation."""
 
@@ -199,3 +345,40 @@ class Relationships:
             if any(c["status"] != "passed" for c in checks.values())
             else "passed",
         }
+
+
+
+def publisher_schema_plan(paths, schema_file):
+    """Plan a *local* publisher-compatible TEC output, never reading references.
+
+    Source folders remain untouched. Refuse to publish when any alias is
+    uncertain or a retained input is missing. Only call this in publisher
+    wall-clock mode with an explicitly enabled publisher_schema_file.
+    """
+    import json
+    from pathlib import Path
+
+    spec = json.loads(Path(schema_file).read_text(encoding="utf-8"))
+    retained = spec.get("retained_columns")
+    aliases = spec.get("source_aliases")
+    if (spec.get("schema_version") != 1 or spec.get("system") != "TEC_48S"
+            or spec.get("measurement_count") != 124
+            or not isinstance(retained, list) or len(retained) != 121
+            or len(retained) != len(set(retained))
+            or not isinstance(aliases, dict)
+            or set(aliases) != {"PF_total", "Q_total", "S_total"}
+            or (set(aliases) & set(retained))):
+        raise ValueError("Invalid TEC publisher schema; expected 121 common + 3 mapped")
+    unresolved = sorted(k for k, v in aliases.items() if not isinstance(v, str) or not v)
+    if unresolved:
+        raise ValueError(f"Verify publisher source mapping before enabling TEC projection: {unresolved}")
+    missing = sorted((set(retained) | set(aliases.values())) - set(paths))
+    if missing:
+        raise ValueError(f"Publisher projection missing source channels: {missing}")
+    chosen = {name: paths[name] for name in retained}
+    chosen.update({name: paths[source] for name, source in aliases.items()})
+    excluded = {name: "Source preserved; omitted from publisher-compatible schema"
+                for name in paths if name not in retained and name not in aliases.values()}
+    if set(chosen) & set(excluded):
+        raise AssertionError("A retained target cannot be excluded")
+    return chosen, excluded, aliases.copy()
