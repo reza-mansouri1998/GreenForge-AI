@@ -18,9 +18,12 @@ from greenforge_ai.transformations.consolidate_telemetry import SensorCursor
 from greenforge_ai.transformations.validate import (
     PV_REVIEW_CHANNELS,
     REFERENCE_CHANNELS,
+    publisher_rule_for,
     Relationships,
     inconsistent_power,
     rule_for,
+    publisher_schema_plan,
+    publisher_availability_end_ms,
 )
 from greenforge_ai.utils.logger import LOG, stage
 from greenforge_ai.utils.streaming import atomic_path, validate_parquet, write_json
@@ -80,10 +83,19 @@ def assess_current_scale(paths, start, end, cfg):
 
 def build_system(system, paths, external, start, end, cfg, directory):
     directory.mkdir(parents=True, exist_ok=True)
-    exclusions = {}
+    publisher_mode = cfg.get("timestamp_mode") == "publisher_wall_clock"
+    projection_sources = {}
+    schema_exclusions = {}
+    if publisher_mode and system["id"] == "TEC_48S" and system.get("publisher_schema_file"):
+        # The local schema file must be kept with the project after the
+        # publisher's reference dataset has been removed.
+        from pathlib import Path
+        schema_path = Path(system["publisher_schema_file"])
+        paths, schema_exclusions, projection_sources = publisher_schema_plan(paths, schema_path)
+    exclusions = dict(schema_exclusions)
     if system["kind"] == "machine":
-        exclusions = {n: "Relative fundamental-reference channel; originals retained"
-                      for n in set(paths) & REFERENCE_CHANNELS}
+        exclusions.update({n: "Relative fundamental-reference channel; originals retained"
+                           for n in set(paths) & REFERENCE_CHANNELS})
     elif system["id"] in {"IPE_PV", "EPI_PV"} and system["input_profile"] == "spark_raw":
         exclusions = {n: "Unverified raw PV register mapping; originals retained for review"
                       for n in set(paths) & PV_REVIEW_CHANNELS
@@ -100,18 +112,26 @@ def build_system(system, paths, external, start, end, cfg, directory):
     extra = (set(system.get("scale_factors", {})) | set(system.get("limits", {}))) - set(names)
     if extra:
         raise ValueError(f"Configured rules name missing channels: {extra}")
-    system = {**system, "scale_factors": dict(system.get("scale_factors", {}))}
+    system = {
+        **system,
+        "scale_factors": dict(system.get("scale_factors", {})),
+        "publisher_reference_year": cfg.get("year"),
+    }
     scale_report = {"status": "not_needed"}
     if (
-        system["input_profile"] == "spark_raw"
+        cfg.get("timestamp_mode") != "publisher_wall_clock"
+        and system["input_profile"] == "spark_raw"
         and system["kind"] == "machine"
         and "I_sys" not in system["scale_factors"]
     ):
         factor, scale_report = assess_current_scale(paths, start, end, cfg)
         if factor is not None:
             system["scale_factors"]["I_sys"] = factor
-    rules = {n: rule_for(n, system) for n in names}
-    unknown = [n for n, r in rules.items() if r.status.startswith("unverified")]
+    rules = {n: (publisher_rule_for(n, system) if cfg.get("timestamp_mode") == "publisher_wall_clock"
+                 else rule_for(n, system)) for n in names}
+    availability_ends = publisher_availability_end_ms(system, cfg, names)
+    unknown = [n for n, r in rules.items()
+               if r.status.startswith(("unverified", "publisher_unverified", "user_override"))]
     if unknown:
         LOG.warning("%s unverified channels retained for review: %s", system["id"], unknown)
     controls = [
@@ -123,15 +143,16 @@ def build_system(system, paths, external, start, end, cfg, directory):
     ]
     if set(names) & {"WsDateTime", *controls}:
         raise ValueError("Measurement uses a reserved output name")
+    timestamp_type = pa.timestamp("ms") if publisher_mode else pa.timestamp("ms", tz="UTC")
     schema = pa.schema(
         [
-            ("WsDateTime", pa.timestamp("ms", tz="UTC")),
+            ("WsDateTime", timestamp_type),
             *[(n, pa.float32()) for n in names],
             *[(n, pa.float32()) for n in controls[:2]],
             *[(n, pa.bool_()) for n in controls[2:]],
         ],
         metadata={
-            b"timezone": b"UTC",
+            b"time_semantics": (b"naive_publisher_wall_clock_not_UTC" if publisher_mode else b"UTC_instant"),
             b"gap_policy": b"no_imputation",
             b"source_timezone_for_naive_values": cfg["source_timezone"].encode(),
             b"measurement_rules": json.dumps({n: r.metadata() for n, r in rules.items()}).encode(),
@@ -160,18 +181,24 @@ def build_system(system, paths, external, start, end, cfg, directory):
         ):
             for index, low in enumerate(range(start, end, cfg["batch_rows"] * 5000)):
                 grid = np.arange(low, min(end, low + cfg["batch_rows"] * 5000), 5000, dtype=np.int64)
-                arrays, data = [pa.array(grid, type=pa.timestamp("ms", tz="UTC"))], {}
+                arrays, data = [pa.array(grid, type=timestamp_type)], {}
                 missing = np.zeros(len(grid), dtype=bool)
                 outlier, shifted = missing.copy(), missing.copy()
                 for name in names:
                     raw, shift = cursors[name].read_grid(grid)
                     values, bad = rules[name].clean(raw)
-                    if name == "P_total" and all(n in data for n in ("P1", "P2", "P3")):
+                    if name in availability_ends:
+                        # Missing-by-publisher-availability is not a physical outlier.
+                        # The inclusive grid boundary is calibrated to the 2024 release.
+                        unavailable = grid > availability_ends[name]
+                        values[unavailable] = np.nan
+                        bad[unavailable] = False
+                    if not publisher_mode and name == "P_total" and all(n in data for n in ("P1", "P2", "P3")):
                         rejected = inconsistent_power(values, [data[n] for n in ("P1", "P2", "P3")])
                         rejected_power += int(rejected.sum())
                         bad |= rejected
                         values[rejected] = np.nan
-                    if name == "DailyYield" and name not in unknown:
+                    if not publisher_mode and name == "DailyYield" and name not in unknown:
                         days = pd.to_datetime(grid, unit="ms", utc=True).tz_convert("Europe/Berlin").date
                         for i in np.flatnonzero(np.isfinite(values)):
                             value, day = values[i], days[i]
@@ -200,9 +227,11 @@ def build_system(system, paths, external, start, end, cfg, directory):
                     shifted |= shift != 0
                     arrays.append(pa.array(values, mask=~valid, type=pa.float32()))
                 for provider in ("DWD", "SMARD"):
-                    values = interval_values(external[provider], grid)
-                    missing |= ~np.isfinite(values)
+                    values = (interval_values(external[provider], grid)
+                              if provider in external else np.full(len(grid), np.nan))
                     arrays.append(pa.array(values, mask=~np.isfinite(values), type=pa.float32()))
+                    # External observations are not part of publisher telemetry quality.
+                    # In wall-clock mode they must not be silently aligned to UTC.
                 arrays.extend(pa.array(a) for a in (missing, outlier, shifted))
                 writer.write_table(
                     pa.Table.from_arrays(arrays, schema=schema), row_group_size=cfg["batch_rows"]
@@ -240,10 +269,22 @@ def build_system(system, paths, external, start, end, cfg, directory):
         "rows": validation["rows"],
         "gap_policy": "no_imputation",
         "excluded_channels": exclusions,
+        "publisher_availability": {
+            "status": "2024_reference_calibrated" if availability_ends else "inactive",
+            "end_inclusive_epoch_ms": availability_ends,
+            "scope": "publisher_wall_clock, TEC_48S, spark_raw, configured reference year",
+        },
+        "publisher_schema_projection": {
+            "enabled": bool(projection_sources),
+            "source_aliases": projection_sources,
+            "publisher_reference_required_at_runtime": False,
+        },
         "target_consistency": {
             "check": "P_total versus coincident P1 + P2 + P3",
             "rejected_rows": rejected_power,
-            "policy": "Reject inconsistent total readings; never reconstruct or fill them",
+            "policy": ("Publisher mode preserves source readings; row-wise phase rejection not applied"
+                       if publisher_mode else "Reject inconsistent total readings; never reconstruct or fill them"),
+            "status": "not_evaluated" if publisher_mode else "applied",
             "relative_tolerance": 0.2,
             "absolute_tolerance_w": 1.0,
         } if target == "P_total" else {"status": "not_applicable"},
@@ -258,7 +299,15 @@ def build_system(system, paths, external, start, end, cfg, directory):
         "status": "ready_for_review"
         if unknown or not passed or relations["status"] != "passed"
         else "checks_passed",
-        "source_policy": "Publisher-informed; not certified identical to the official cleaned archive",
+        "source_policy": "Publisher-compatible rules where documented; parity requires official file comparison",
+        "publisher_parity_verified": False,
+        "reference_validation_required": [
+            "compare official cleaned values and null masks",
+            "verify publisher removal-registry entries for these channels",
+            "verify undocumented per-measurement outlier and scaling rules",
+        ],
+        "timestamp_mode": cfg.get("timestamp_mode", "utc_instant"),
+        "external_join_status": "disabled_wall_clock_time" if publisher_mode else "enabled_utc_time",
     }
     write_json(directory / "quality.json", report)
     return report
