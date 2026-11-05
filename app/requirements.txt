@@ -1,0 +1,5 @@
+# Streamlit executes only HTTP GET requests against FastAPI.
+streamlit>=1.46,<2
+pandas>=2.3,<4
+plotly>=6,<7
+requests>=2.32,<3
