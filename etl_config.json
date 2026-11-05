@@ -1,0 +1,60 @@
+{
+  "data_root": "data",
+  "year": 2024,
+  "source_timezone": "Europe/Berlin",
+  "memory_limit": "1GB",
+  "threads": 2,
+  "batch_rows": 8192,
+  "dwd_station_id": "04177",
+  "http_workers": 2,
+  "history_intervals": 4,
+  "horizon_intervals": 1,
+  "systems": [
+    {
+      "id": "TEC_48S",
+      "kind": "machine",
+      "input_dir": "raw/spark_raw/TEC_48S",
+      "input_profile": "spark_raw",
+      "target": "P_total",
+      "rated_current_a": 40.0,
+      "line_voltage_v": 400.0,
+      "capacity_margin": 1.1,
+      "scale_factors": {},
+      "limits": {
+        "Q_total": [
+          null,
+          32000.0
+        ],
+        "S_total": [
+          null,
+          25000.0
+        ]
+      },
+      "publisher_schema_file": "publisher_schema.json",
+      "publisher_availability": {
+        "policy_version": 1,
+        "reference_year": 2024,
+        "timestamp_mode": "publisher_wall_clock",
+        "input_profile": "spark_raw",
+        "end_inclusive": {
+          "LoadType1": "2024-01-26T08:02:05"
+        },
+        "provenance": "2024 SPARK publisher-cleaned LoadType1 observed valid coverage; inferred dataset-specific rule, not a documented physical limit"
+      }
+    },
+    {
+      "id": "IPE_PV",
+      "kind": "pv",
+      "input_dir": "raw/spark_raw/IPE_PV",
+      "input_profile": "spark_raw",
+      "target": "AC_ActivePower",
+      "rated_current_a": 16.0,
+      "line_voltage_v": 400.0,
+      "capacity_margin": 1.1,
+      "scale_factors": {},
+      "limits": {}
+    }
+  ],
+  "timestamp_mode": "publisher_wall_clock",
+  "external_enrichment": "safe_local_hour"
+}
