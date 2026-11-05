@@ -1,39 +1,43 @@
-# --- Data Engineering & Medallion Data Lake ---
+# Data engineering and Parquet
+numpy>=1.26
+pandas>=2.2
+polars[pyarrow]>=1.0
+pyarrow>=15
 duckdb
-polars[pyarrow]
-polars requests
 pandera[polars]
-
-# --- Ingestion & External APIs ---
-wetterdienst
 requests
-pandas
+wetterdienst
+psutil
+
+# Notebook analysis and visualization
 matplotlib
 seaborn
-numpy
-ipykernel
-wetterdienst
 plotly
+ipykernel
 nbformat
 
-# --- Machine Learning & Operations Research ---
+# Forecasting, anomaly monitoring and MILP
+scipy>=1.12
+scikit-learn>=1.4
 lightgbm
 xgboost
 catboost
-scikit-learn
 ortools
 shap
+joblib
+threadpoolctl
 
-# --- MLOps & Experiment Tracking ---
-mlflow
+# Reproducible model artifacts and experiment tracking
+mlflow>=3.1,<4
 
-# --- API & Serving ---
+# API (implementation follows in a later project phase)
 fastapi
 uvicorn[standard]
 pydantic
 
-# --- Testing & Code Quality ---
+# Quality
 pytest
 ruff
+httpx
 
-# -e .
+-e .
