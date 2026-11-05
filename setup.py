@@ -1,13 +1,21 @@
+"""Install the existing src/greenforge_ai package without changing its layout."""
+
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
-def get_requirements(file_path):
-    with open(file_path, "r") as file:
-        requirements = file.read().splitlines()
-        
-    if "-e ." in requirements:
-        requirements.remove("-e .")
-        
-    return requirements
+
+ROOT = Path(__file__).resolve().parent
+
+
+def get_requirements():
+    """Exclude headings, empty lines and editable-install markers."""
+    return [
+        line.strip()
+        for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith(("#", "-e "))
+    ]
+
 
 setup(
     name="greenforge-ai",
@@ -17,6 +25,6 @@ setup(
     description="AI-powered sustainable manufacturing optimization.",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    install_requires=get_requirements("requirements.txt"),
+    install_requires=get_requirements(),
     python_requires=">=3.12",
 )
