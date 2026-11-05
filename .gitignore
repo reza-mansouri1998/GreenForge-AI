@@ -3,6 +3,7 @@
 .tmp
 /logs/
 /mlruns/
+/reports/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
