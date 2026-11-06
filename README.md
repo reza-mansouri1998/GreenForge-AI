@@ -173,6 +173,51 @@ At **08:00**, the optimizer can use **one genuine 15-minute-ahead PV forecast** 
 
 This design matters: a 15-minute forecast must not be presented as a complete ten-hour weather or production forecast. The model also assumes that archived price information was available when needed; real publication and ingestion latency have not been validated.
 
+## Tools and engineering practices
+
+| Area | Tools | How they were used |
+|---|---|---|
+| Data ingestion and processing | **Python, DuckDB, Polars, Pandas, NumPy, PyArrow** | Stream large sensor files, validate observations, aggregate time series, store Parquet |
+| External data | **DWD, SMARD, Requests** | Historical weather and day-ahead market prices |
+| Forecasting | **scikit-learn, LightGBM, CatBoost, XGBoost** | Time-series features, model comparisons, held-out evaluation and persistence baselines |
+| Anomaly monitoring | **scikit-learn** (PCA, LOF, Isolation Forest, K-Means) | Regime-specific unsupervised review signals |
+| Optimization | **SciPy / HiGHS, NumPy** | Mixed-integer scheduling with explicit constraints |
+| Experiments and serving | **MLflow, FastAPI, Uvicorn, Streamlit, Plotly** | Saved-model tracking, HTTP API, interactive dashboard |
+| Quality and delivery | **pytest, GitHub Actions, Docker, Docker Compose** | Automated tests, Docker image builds and reproducible local services |
+
+The ETL checks measurement units, completeness, timestamp alignment and data lineage. It publishes outputs with checksums and atomic file replacement. Forecast features are built only from prior measurements, evaluations use chronological splits, and historical monitoring records carry availability timestamps so future information cannot be used prematurely.
+
+GitHub Actions runs isolated unit tests and validates the three lightweight Docker build targets. **It is a CI workflow, not a cloud backend deployment pipeline.** Streamlit Community Cloud separately redeploys the public dashboard when the connected GitHub branch is updated.
+
+## Answers to the project questions
+
+**1. How does the machine use electricity?**  
+It does not show continuous high-power use. We observed **276 higher-power stretches** and **142.7 hours above 100 W**. This gives an evidence-based picture of activity, but production logs are needed to identify actual jobs, idle waste or allowable schedule changes.
+
+**2. When are solar generation and electricity prices favorable?**  
+Average observed solar production was strongest near **12:00**, while the cheapest average market-price hour was **13:00** in the available price history. Price variation creates a potential incentive to shift flexible demand, but the solar and price records span different periods and a factory's tariff is unknown.
+
+**3. Can temperature explain a drop in solar efficiency?**  
+**Not with these data.** The midday air-temperature correlation was only **0.06** across 86 complete windows. Irradiance and actual panel temperature are missing, so a temperature-related efficiency penalty cannot be isolated.
+
+**4. Could solar power reduce the machine's grid imports?**  
+Under the **unverified shared-connection assumption**, usable intervals contained **44.10 kWh** of demand: **9.00 kWh** offset by modeled local PV and **35.10 kWh** requiring grid imports. That is a scenario covering a limited overlap period, not a verified whole-plant energy balance.
+
+**5. Can machine and solar power be forecast 15 minutes ahead?**  
+**Yes, historically, with useful—but imperfect—skill:** application-model test R² was **0.745** for TEC_48S and **0.824** for IPE_PV. The last-reading baseline still wins on overall MAE, so the results justify further evaluation rather than a claim of universal ML superiority.
+
+**6. Can unusual behavior or degradation be detected?**  
+The pipeline found **97 review-flagged intervals** and made them explorable in a dashboard. It cannot establish the number of equipment failures or predict remaining useful life. The electrical-condition study also surfaced sensor inconsistencies that need independent engineering checks.
+
+**7. Can an optimizer recommend better working hours?**  
+**Within the stated hypothetical scheduling rules, yes.** On 11 matched historical days, MILP produced **53.7% lower average modeled wholesale cost** than starting the same two jobs at 08:00, along with a mean reduction of **0.210 kWh** in grid imports and **0.076 kg** in annual-factor estimated CO₂ per schedule. The result is a successful **decision-support experiment**, not proof of realized factory savings.
+
+## Limitations and next steps
+
+The main missing inputs for real operation are **verified production orders and deadlines, permitted operating windows, equipment safety rules, actual tariffs, confirmed electrical connectivity, full-horizon solar/weather forecasts and measured data/publication latency**. The solar data used here cover only part of 2024. No fault labels, maintenance histories or actual factory dispatch records are available.
+
+A practical next version would add those inputs, validate forecasting on a new time period, test the optimizer on real production constraints, and measure the outcome in a controlled operational pilot.
+
 ## Run the project
 
 ### Option A — View the dashboard immediately
@@ -270,51 +315,6 @@ The optional Docker Compose stack is defined in `docker/compose.yaml`:
 ```
 
 This local stack mounts the historical reports and MLflow storage from the host. It requires those files to exist locally; **Docker images, the local MLflow service and FastAPI are not hosted by the public Streamlit deployment**.
-
-## Tools and engineering practices
-
-| Area | Tools | How they were used |
-|---|---|---|
-| Data ingestion and processing | **Python, DuckDB, Polars, Pandas, NumPy, PyArrow** | Stream large sensor files, validate observations, aggregate time series, store Parquet |
-| External data | **DWD, SMARD, Requests** | Historical weather and day-ahead market prices |
-| Forecasting | **scikit-learn, LightGBM, CatBoost, XGBoost** | Time-series features, model comparisons, held-out evaluation and persistence baselines |
-| Anomaly monitoring | **scikit-learn** (PCA, LOF, Isolation Forest, K-Means) | Regime-specific unsupervised review signals |
-| Optimization | **SciPy / HiGHS, NumPy** | Mixed-integer scheduling with explicit constraints |
-| Experiments and serving | **MLflow, FastAPI, Uvicorn, Streamlit, Plotly** | Saved-model tracking, HTTP API, interactive dashboard |
-| Quality and delivery | **pytest, GitHub Actions, Docker, Docker Compose** | Automated tests, Docker image builds and reproducible local services |
-
-The ETL checks measurement units, completeness, timestamp alignment and data lineage. It publishes outputs with checksums and atomic file replacement. Forecast features are built only from prior measurements, evaluations use chronological splits, and historical monitoring records carry availability timestamps so future information cannot be used prematurely.
-
-GitHub Actions runs isolated unit tests and validates the three lightweight Docker build targets. **It is a CI workflow, not a cloud backend deployment pipeline.** Streamlit Community Cloud separately redeploys the public dashboard when the connected GitHub branch is updated.
-
-## Answers to the project questions
-
-**1. How does the machine use electricity?**  
-It does not show continuous high-power use. We observed **276 higher-power stretches** and **142.7 hours above 100 W**. This gives an evidence-based picture of activity, but production logs are needed to identify actual jobs, idle waste or allowable schedule changes.
-
-**2. When are solar generation and electricity prices favorable?**  
-Average observed solar production was strongest near **12:00**, while the cheapest average market-price hour was **13:00** in the available price history. Price variation creates a potential incentive to shift flexible demand, but the solar and price records span different periods and a factory's tariff is unknown.
-
-**3. Can temperature explain a drop in solar efficiency?**  
-**Not with these data.** The midday air-temperature correlation was only **0.06** across 86 complete windows. Irradiance and actual panel temperature are missing, so a temperature-related efficiency penalty cannot be isolated.
-
-**4. Could solar power reduce the machine's grid imports?**  
-Under the **unverified shared-connection assumption**, usable intervals contained **44.10 kWh** of demand: **9.00 kWh** offset by modeled local PV and **35.10 kWh** requiring grid imports. That is a scenario covering a limited overlap period, not a verified whole-plant energy balance.
-
-**5. Can machine and solar power be forecast 15 minutes ahead?**  
-**Yes, historically, with useful—but imperfect—skill:** application-model test R² was **0.745** for TEC_48S and **0.824** for IPE_PV. The last-reading baseline still wins on overall MAE, so the results justify further evaluation rather than a claim of universal ML superiority.
-
-**6. Can unusual behavior or degradation be detected?**  
-The pipeline found **97 review-flagged intervals** and made them explorable in a dashboard. It cannot establish the number of equipment failures or predict remaining useful life. The electrical-condition study also surfaced sensor inconsistencies that need independent engineering checks.
-
-**7. Can an optimizer recommend better working hours?**  
-**Within the stated hypothetical scheduling rules, yes.** On 11 matched historical days, MILP produced **53.7% lower average modeled wholesale cost** than starting the same two jobs at 08:00, along with a mean reduction of **0.210 kWh** in grid imports and **0.076 kg** in annual-factor estimated CO₂ per schedule. The result is a successful **decision-support experiment**, not proof of realized factory savings.
-
-## Limitations and next steps
-
-The main missing inputs for real operation are **verified production orders and deadlines, permitted operating windows, equipment safety rules, actual tariffs, confirmed electrical connectivity, full-horizon solar/weather forecasts and measured data/publication latency**. The solar data used here cover only part of 2024. No fault labels, maintenance histories or actual factory dispatch records are available.
-
-A practical next version would add those inputs, validate forecasting on a new time period, test the optimizer on real production constraints, and measure the outcome in a controlled operational pilot.
 
 ## Data sources, attribution and license
 
