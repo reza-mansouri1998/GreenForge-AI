@@ -1,6 +1,6 @@
 # AI_Powered Sustainable Manufacturing optimization
 
-**GreenForge AI** · Industrial data engineering, machine learning and energy-aware scheduling
+**GreenForge AI** · Applied data science for industrial energy forecasting, anomaly detection and smarter job scheduling
 
 ### [🚀 Explore the live dashboard](https://greenforge-ai.streamlit.app/)
 
@@ -8,21 +8,21 @@
 
 ![GreenForge AI dashboard](docs/dashboard-preview.png)
 
-## Overview
+## 📊 Overview
 
 **The problem:** Industrial sensor data can be noisy or incomplete. Meanwhile, machine demand, solar generation and electricity prices change throughout the day. How can a factory turn these signals into **reliable information and better scheduling decisions**?
 
-**What I built:** An end-to-end pipeline that cleans raw measurements, studies energy use, forecasts the next 15 minutes, highlights unusual readings and tests a cost-aware job schedule. The result is a **historical decision-support prototype**, not a live factory controller.
+**What I built:** A **data science project** that studies energy use, predicts the next 15 minutes, flags unusual readings and tests better job schedules. Data engineering makes the raw measurements reliable; MLflow, FastAPI, Docker and Streamlit make the results reproducible and easy to explore.
 
-**Results from the saved 2024 evaluation:**
+**Results from the 2024 historical evaluation:**
 
-| Forecasting | Anomaly monitoring | Scheduling |
-|:--|:--|:--|
-| **R² 0.745** (machine), **0.824** (solar) | **97** intervals flagged for review | **53.7%** lower *modeled* mean cost on **11** historical days |
+| ⏱️ 15-min forecasting | 🔎 Anomaly monitoring | 💶 Modeled job cost | 🌱 Estimated CO₂ |
+|:--|:--|:--|:--|
+| **R² 0.745** machine · **0.824** solar | **97** intervals flagged for review | **↓ 53.7%** | **↓ 16.8%** |
 
-> **Scope:** Forecast scores are retrospective; review flags are **not confirmed faults**; savings compare hypothetical jobs and archived wholesale prices, **not actual bills**.
+*The cost and CO₂ reductions come from **11 historical days** of a hypothetical two-job schedule versus starting at 08:00. CO₂ uses a fixed emissions factor. These are **modeled results, not verified factory savings**; flagged anomalies are not confirmed faults.*
 
-## 1. Dataset: a lathe and rooftop solar
+## 1. 🏭 Dataset: a lathe and rooftop solar
 
 I used **[SPARK-Raw](https://radar.kit.edu/radar/en/dataset/8efkkn0g9pcng5yd)** from **Karlsruhe Institute of Technology (KIT)**: 5-second electrical measurements from 22 industrial machines and a photovoltaic system. I selected two 2024 sources:
 
@@ -41,7 +41,7 @@ These sites are separate. Combining their power in this project is a **what-if s
 </p>
 <p align="center"><sub>Photo: <a href="https://www.kit.edu/kit/202602-mehr-solarstrom-fur-forschung-am-kit.php">KIT photovoltaic installation</a> — illustrative campus photo, <b>not</b> the EPI array measured in this dataset.</sub></p>
 
-## 2. Data engineering: making the raw data usable
+## 2. 🛠️ Data engineering: making the raw data usable
 
 The raw `.csv.xz` files contain **gaps, outliers, inconsistent units and off-grid timestamps**. I built an ETL pipeline to handle those problems without inventing measurements:
 
@@ -55,7 +55,7 @@ The raw `.csv.xz` files contain **gaps, outliers, inconsistent units and off-gri
 ![2024 data coverage](docs/figures/01-data-coverage.png)
 *Machine coverage was much stronger than PV coverage; the available solar series ends in early April.*
 
-## 3. EDA: understanding when energy is used
+## 3. 🔍 EDA: understanding when energy is used
 
 The three [EDA notebooks](notebooks/EDA/) explore machine activity, solar production, weather, prices and an illustrative shared-energy balance.
 
@@ -65,7 +65,7 @@ The three [EDA notebooks](notebooks/EDA/) explore machine activity, solar produc
 
 ![Machine activity and PV daily profile](docs/figures/03-eda-behavior.png)
 
-## 4. Models: predict, monitor, optimize
+## 4. 🧠 Models: predict, monitor, optimize
 
 ### Forecasting — what happens in the next 15 minutes?
 
@@ -91,21 +91,29 @@ Using **SciPy/HiGHS**, I scheduled **two illustrative one-hour jobs** within **0
 
 The genuine **08:00 PV forecast covers only 08:00–08:15**; the remaining 39 slots use **pre-test historical solar profiles**. Anomaly information is **advisory context**, not an automatic stop signal. Future measured solar is used **only to score** the chosen schedules.
 
-**Outcome:** On **11 historical days**, modeled average job cost fell from **€0.0933 to €0.0432** (a **53.7% reduction**) versus always starting at 08:00. The optimizer was cheaper on 9 days, but not all 11.
+**Outcome:** Across **11 historical days**, average modeled job cost fell from **€0.0933 to €0.0432 (↓ 53.7%)**; estimated CO₂ fell **16.8%**, driven by lower modeled grid imports. The schedule was cheaper on 9 days, but not all 11. These are **scenario results**, not measured factory savings.
 
 ![Historical modeled MILP costs](docs/figures/07-milp-results.png)
 
-## 5. Architecture and engineering stack
+## 5. 🧩 Architecture and technology stack
 
 ![GreenForge AI pipeline architecture](docs/architecture.svg)
 
-**Built with:** Python, Pandas, **DuckDB**, PyArrow/Parquet, Polars, scikit-learn, LightGBM, CatBoost, SciPy MILP, **MLflow**, FastAPI, Streamlit, Plotly, Docker and GitHub Actions.
+### 🧰 Technologies
+
+| Area | Tools |
+|:--|:--|
+| **Data science & ML** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white) ![LightGBM](https://img.shields.io/badge/LightGBM-2E8B57?style=flat-square) ![CatBoost](https://img.shields.io/badge/CatBoost-F5C542?style=flat-square&logoColor=black) ![SciPy](https://img.shields.io/badge/SciPy-8CAAE6?style=flat-square&logo=scipy&logoColor=white) |
+| **Data preparation** | ![Pandas](https://img.shields.io/badge/Pandas-150458?style=flat-square&logo=pandas&logoColor=white) ![DuckDB](https://img.shields.io/badge/DuckDB-FFF000?style=flat-square&logo=duckdb&logoColor=black) ![Polars](https://img.shields.io/badge/Polars-CD792C?style=flat-square&logo=polars&logoColor=white) ![PyArrow](https://img.shields.io/badge/PyArrow%20%2F%20Parquet-4C78A8?style=flat-square) |
+| **Experiment tracking** | ![MLflow](https://img.shields.io/badge/MLflow-0194E2?style=flat-square&logo=mlflow&logoColor=white) ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) |
+| **Apps & visualization** | ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![Plotly](https://img.shields.io/badge/Plotly-3F4F75?style=flat-square&logo=plotly&logoColor=white) |
+| **Packaging & CI** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) ![GitHub%20Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white) |
 
 - **Reproducible:** ETL validation and manifest hashes; time-safe splits; saved run-matched reports and MLflow models.
 - **Tested:** Pytest for ETL, forecasts, anomaly logic, optimization and API contracts. GitHub Actions checks Python and **builds Docker images**, but does not deploy the Docker stack.
 - **Two deployment paths:** **Public Streamlit Cloud** reads stored historical reports; **local Docker Compose** runs FastAPI + dashboard, with optional MLflow UI and saved-model inference.
 
-### Project structure
+### 📁 Project structure
 
 ```text
 GreenForge-AI/
@@ -133,7 +141,7 @@ GreenForge-AI/
 └── README.md
 ```
 
-## 6. Run the project
+## 6. 🚀 Run the project
 
 **Quickest way:** [Open the live dashboard](https://greenforge-ai.streamlit.app/).
 
@@ -164,11 +172,11 @@ docker compose -f docker/compose.yaml up --build
 
 Dashboard: `http://localhost:8501` · API docs: `http://localhost:8000/docs`.
 
-## 7. Limitations and next steps
+## 7. ⚠️ Limitations and next steps
 
 This is **historical research, not verified operational savings**. The PV record is short; real plant tariffs, job orders, physical PV sharing, price-publication timing and live sensor latency have not been verified. Anomalies have no fault labels. Next steps are **full-day forecasting, real production constraints and a controlled pilot**.
 
-## Dataset and credits
+## 📚 Dataset and credits
 
 - **SPARK-Raw:** Sievers, J., Blank, T., Bischof, S., et al. (2026), Karlsruhe Institute of Technology. [Dataset / CC BY 4.0](https://doi.org/10.35097/8efkkn0g9pcng5yd) · [Source publication](https://doi.org/10.1038/s41597-026-06955-4).
 - **External inputs:** DWD weather and SMARD archived prices; CO₂ estimated with a fixed 2024 German annual factor (not marginal emissions).
