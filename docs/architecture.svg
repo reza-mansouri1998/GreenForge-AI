@@ -10,42 +10,17 @@
         </filter>
     </defs>
 
-    <style>
-        /* Typography */
-        .title { font-family: system-ui, -apple-system, sans-serif; font-size: 34px; font-weight: 800; fill: #111827; }
-        .subtitle { font-family: system-ui, -apple-system, sans-serif; font-size: 19px; fill: #4B5563; }
-        
-        .box-text-main { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #111827; }
-        .box-text-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 13.5px; fill: #4B5563; }
-        
-        .legend-title { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 800; fill: #111827; }
-        .legend-main { font-family: system-ui, -apple-system, sans-serif; font-size: 15px; font-weight: 700; fill: #111827; }
-        .legend-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 12.5px; fill: #4B5563; }
-        
-        /* Layout and Connectors */
-        .bg-canvas { fill: #F8FAFC; }
-        .line { fill: none; stroke: #9CA3AF; stroke-width: 2.5px; }
-        .box { rx: 12px; filter: url(#shadow); stroke-width: 2px; }
-        
-        /* Color Palette matching original diagram */
-        .bg-blue { fill: #EFF6FF; stroke: #93C5FD; }
-        .bg-green { fill: #F0FDF4; stroke: #86EFAC; }
-        .bg-orange { fill: #FFFBEB; stroke: #FDE047; }
-        .bg-purple { fill: #FAF5FF; stroke: #D8B4FE; }
-        .bg-teal { fill: #ECFEFF; stroke: #67E8F9; }
-    </style>
-
     <!-- Canvas Background -->
-    <rect width="100%" height="100%" class="bg-canvas" />
+    <rect width="100%" height="100%" fill="#F8FAFC" />
 
     <!-- Header Section -->
-    <text x="70" y="65" class="title">AI_Powered Sustainable Manufacturing Optimization</text>
-    <text x="70" y="95" class="subtitle">From raw industrial data to forecasts, anomaly monitoring, optimization, API, and public dashboard</text>
+    <text x="70" y="65" font-family="system-ui, -apple-system, sans-serif" font-size="34px" font-weight="800" fill="#111827">AI_Powered Sustainable Manufacturing Optimization</text>
+    <text x="70" y="95" font-family="system-ui, -apple-system, sans-serif" font-size="19px" fill="#4B5563">From raw industrial data to forecasts, anomaly monitoring, optimization, API, and public dashboard</text>
 
     <!-- ======================= -->
     <!--     CONNECTOR LINES     -->
     <!-- ======================= -->
-    <g class="line" marker-end="url(#arrow)">
+    <g fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow)">
         <!-- Row 1 to Row 2 -->
         <path d="M 200 210 L 200 230 L 500 230 L 500 246" />
         <path d="M 500 210 L 500 246" />
@@ -76,115 +51,117 @@
     <!-- ======================= -->
     <!--     PIPELINE BOXES      -->
     <!-- ======================= -->
-    <g>
+    <g font-family="system-ui, -apple-system, sans-serif">
         <!-- Row 1: Data Sources -->
-        <rect x="70" y="130" width="260" height="80" class="box bg-blue" />
-        <text x="95" y="165" class="box-text-main">🛢️ TEC_48S.zip</text>
-        <text x="95" y="188" class="box-text-sub">Machine sensor readings</text>
+        <rect x="70" y="130" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#EFF6FF" stroke="#93C5FD" />
+        <text x="95" y="165" font-size="16px" font-weight="700" fill="#111827">🛢️ TEC_48S.zip</text>
+        <text x="95" y="188" font-size="13.5px" fill="#4B5563">Machine sensor readings</text>
 
-        <rect x="370" y="130" width="260" height="80" class="box bg-blue" />
-        <text x="395" y="165" class="box-text-main">☀️ IPE_PV.zip</text>
-        <text x="395" y="188" class="box-text-sub">Solar PV readings</text>
+        <rect x="370" y="130" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#EFF6FF" stroke="#93C5FD" />
+        <text x="395" y="165" font-size="16px" font-weight="700" fill="#111827">☀️ IPE_PV.zip</text>
+        <text x="395" y="188" font-size="13.5px" fill="#4B5563">Solar PV readings</text>
 
-        <rect x="670" y="130" width="260" height="80" class="box bg-blue" />
-        <text x="695" y="165" class="box-text-main">🌧️ DWD + SMARD</text>
-        <text x="695" y="188" class="box-text-sub">Weather + market prices</text>
+        <rect x="670" y="130" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#EFF6FF" stroke="#93C5FD" />
+        <text x="695" y="165" font-size="16px" font-weight="700" fill="#111827">🌧️ DWD + SMARD</text>
+        <text x="695" y="188" font-size="13.5px" fill="#4B5563">Weather + market prices</text>
 
         <!-- Row 2: ETL Pipeline -->
-        <rect x="280" y="250" width="440" height="80" class="box bg-green" />
-        <text x="305" y="285" class="box-text-main">⚙️ etl_pipeline.py</text>
-        <text x="305" y="308" class="box-text-sub">Ingest, align, validate, aggregate</text>
+        <rect x="280" y="250" width="440" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#86EFAC" />
+        <text x="305" y="285" font-size="16px" font-weight="700" fill="#111827">⚙️ etl_pipeline.py</text>
+        <text x="305" y="308" font-size="13.5px" fill="#4B5563">Ingest, align, validate, aggregate</text>
 
         <!-- Row 3: Processed Data -->
-        <rect x="280" y="370" width="440" height="80" class="box bg-green" />
-        <text x="305" y="405" class="box-text-main">📂 data/processed/</text>
-        <text x="305" y="428" class="box-text-sub">Cleaned tables, features, manifest</text>
+        <rect x="280" y="370" width="440" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#86EFAC" />
+        <text x="305" y="405" font-size="16px" font-weight="700" fill="#111827">📂 data/processed/</text>
+        <text x="305" y="428" font-size="13.5px" fill="#4B5563">Cleaned tables, features, manifest</text>
 
         <!-- Row 4: EDA and Training Base -->
-        <rect x="70" y="490" width="260" height="80" class="box bg-orange" />
-        <text x="95" y="525" class="box-text-main">📊 notebooks/EDA/</text>
-        <text x="95" y="548" class="box-text-sub">3 notebooks: machine, solar, prices</text>
+        <rect x="70" y="490" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FFFBEB" stroke="#FDE047" />
+        <text x="95" y="525" font-size="16px" font-weight="700" fill="#111827">📊 notebooks/EDA/</text>
+        <text x="95" y="548" font-size="13.5px" fill="#4B5563">3 notebooks: machine, solar, prices</text>
 
-        <rect x="430" y="490" width="440" height="80" class="box bg-purple" />
-        <text x="455" y="525" class="box-text-main">🧪 training_pipeline.py</text>
-        <text x="455" y="548" class="box-text-sub">Time-safe experiments + MLFlow</text>
+        <rect x="430" y="490" width="440" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#D8B4FE" />
+        <text x="455" y="525" font-size="16px" font-weight="700" fill="#111827">🧪 training_pipeline.py</text>
+        <text x="455" y="548" font-size="13.5px" fill="#4B5563">Time-safe experiments + MLFlow</text>
 
         <!-- Row 5: Training Modules -->
-        <rect x="230" y="610" width="240" height="80" class="box bg-purple" />
-        <text x="250" y="645" class="box-text-main">📈 train_forecasting.py</text>
-        <text x="250" y="668" class="box-text-sub">15-min forecasting</text>
+        <rect x="230" y="610" width="240" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#D8B4FE" />
+        <text x="250" y="645" font-size="16px" font-weight="700" fill="#111827">📈 train_forecasting.py</text>
+        <text x="250" y="668" font-size="13.5px" fill="#4B5563">15-min forecasting</text>
 
-        <rect x="530" y="610" width="240" height="80" class="box bg-purple" />
-        <text x="550" y="645" class="box-text-main">⚠️ train_anomaly.py</text>
-        <text x="550" y="668" class="box-text-sub">Advisory anomaly monitoring</text>
+        <rect x="530" y="610" width="240" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#D8B4FE" />
+        <text x="550" y="645" font-size="16px" font-weight="700" fill="#111827">⚠️ train_anomaly.py</text>
+        <text x="550" y="668" font-size="13.5px" fill="#4B5563">Advisory anomaly monitoring</text>
 
-        <rect x="790" y="610" width="320" height="80" class="box bg-purple" />
-        <text x="810" y="645" class="box-text-main">🗓️ scheduler.py + constraints.py</text>
-        <text x="810" y="668" class="box-text-sub">MILP job scheduling</text>
+        <rect x="790" y="610" width="320" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#D8B4FE" />
+        <text x="810" y="645" font-size="16px" font-weight="700" fill="#111827">🗓️ scheduler.py + constraints.py</text>
+        <text x="810" y="668" font-size="13.5px" fill="#4B5563">MILP job scheduling</text>
 
         <!-- Row 6: Reports Output -->
-        <rect x="370" y="730" width="560" height="80" class="box bg-green" />
-        <text x="395" y="765" class="box-text-main">📄 reports/ml_short_term/application_runs/</text>
-        <text x="395" y="788" class="box-text-sub">Forecast, anomaly, and optimization reports</text>
+        <rect x="370" y="730" width="560" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#86EFAC" />
+        <text x="395" y="765" font-size="16px" font-weight="700" fill="#111827">📄 reports/ml_short_term/application_runs/</text>
+        <text x="395" y="788" font-size="13.5px" fill="#4B5563">Forecast, anomaly, and optimization reports</text>
 
         <!-- Row 7: Deployment and Apps -->
-        <rect x="250" y="850" width="400" height="80" class="box bg-teal" />
-        <text x="275" y="885" class="box-text-main">💻 app/streamlit_app.py</text>
-        <text x="275" y="908" class="box-text-sub">Public dashboard — reads reports directly</text>
+        <rect x="250" y="850" width="400" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#ECFEFF" stroke="#67E8F9" />
+        <text x="275" y="885" font-size="16px" font-weight="700" fill="#111827">💻 app/streamlit_app.py</text>
+        <text x="275" y="908" font-size="13.5px" fill="#4B5563">Public dashboard — reads reports directly</text>
 
-        <rect x="670" y="850" width="360" height="80" class="box bg-teal" />
-        <text x="695" y="885" class="box-text-main">🔌 app/main.py</text>
-        <text x="695" y="908" class="box-text-sub">Local FastAPI — reports + optional inference</text>
+        <rect x="670" y="850" width="360" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#ECFEFF" stroke="#67E8F9" />
+        <text x="695" y="885" font-size="16px" font-weight="700" fill="#111827">🔌 app/main.py</text>
+        <text x="695" y="908" font-size="13.5px" fill="#4B5563">Local FastAPI — reports + optional inference</text>
     </g>
 
     <!-- ======================= -->
     <!--    SIDEBAR / LEGEND     -->
     <!-- ======================= -->
     <rect x="1150" y="130" width="300" height="800" rx="16" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2" filter="url(#shadow)" />
-    <text x="1175" y="170" class="legend-title">Pipeline Stages</text>
+    <text x="1175" y="170" font-family="system-ui, -apple-system, sans-serif" font-size="20px" font-weight="800" fill="#111827">Pipeline Stages</text>
 
-    <!-- Legend: Data Sources -->
-    <g transform="translate(1170, 200)">
-        <rect x="0" y="0" width="260" height="80" class="box bg-blue" />
-        <text x="20" y="30" class="legend-main">🛢️ Data Sources</text>
-        <text x="20" y="52" class="legend-sub">Raw industrial, solar, weather,</text>
-        <text x="20" y="68" class="legend-sub">and market data</text>
-    </g>
+    <g font-family="system-ui, -apple-system, sans-serif">
+        <!-- Legend: Data Sources -->
+        <g transform="translate(1170, 200)">
+            <rect x="0" y="0" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#EFF6FF" stroke="#93C5FD" />
+            <text x="20" y="30" font-size="15px" font-weight="700" fill="#111827">🛢️ Data Sources</text>
+            <text x="20" y="52" font-size="12.5px" fill="#4B5563">Raw industrial, solar, weather,</text>
+            <text x="20" y="68" font-size="12.5px" fill="#4B5563">and market data</text>
+        </g>
 
-    <!-- Legend: ETL -->
-    <g transform="translate(1170, 305)">
-        <rect x="0" y="0" width="260" height="80" class="box bg-green" />
-        <text x="20" y="35" class="legend-main">⚙️ ETL / Data Processing</text>
-        <text x="20" y="58" class="legend-sub">Ingest, align, validate, and prepare</text>
-    </g>
+        <!-- Legend: ETL -->
+        <g transform="translate(1170, 305)">
+            <rect x="0" y="0" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#86EFAC" />
+            <text x="20" y="35" font-size="15px" font-weight="700" fill="#111827">⚙️ ETL / Data Processing</text>
+            <text x="20" y="58" font-size="12.5px" fill="#4B5563">Ingest, align, validate, and prepare</text>
+        </g>
 
-    <!-- Legend: EDA -->
-    <g transform="translate(1170, 410)">
-        <rect x="0" y="0" width="260" height="80" class="box bg-orange" />
-        <text x="20" y="35" class="legend-main">📊 Exploration (EDA)</text>
-        <text x="20" y="58" class="legend-sub">Understand data and scenarios</text>
-    </g>
+        <!-- Legend: EDA -->
+        <g transform="translate(1170, 410)">
+            <rect x="0" y="0" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FFFBEB" stroke="#FDE047" />
+            <text x="20" y="35" font-size="15px" font-weight="700" fill="#111827">📊 Exploration (EDA)</text>
+            <text x="20" y="58" font-size="12.5px" fill="#4B5563">Understand data and scenarios</text>
+        </g>
 
-    <!-- Legend: Training -->
-    <g transform="translate(1170, 515)">
-        <rect x="0" y="0" width="260" height="90" class="box bg-purple" />
-        <text x="20" y="30" class="legend-main">🧪 Training / Modeling</text>
-        <text x="20" y="52" class="legend-sub">Experiments and model training</text>
-        <text x="20" y="68" class="legend-sub">(forecasting, anomaly, optimization)</text>
-    </g>
+        <!-- Legend: Training -->
+        <g transform="translate(1170, 515)">
+            <rect x="0" y="0" width="260" height="90" rx="12" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#D8B4FE" />
+            <text x="20" y="30" font-size="15px" font-weight="700" fill="#111827">🧪 Training / Modeling</text>
+            <text x="20" y="52" font-size="12.5px" fill="#4B5563">Experiments and model training</text>
+            <text x="20" y="68" font-size="12.5px" fill="#4B5563">(forecasting, anomaly, optimization)</text>
+        </g>
 
-    <!-- Legend: Outputs -->
-    <g transform="translate(1170, 630)">
-        <rect x="0" y="0" width="260" height="80" class="box bg-green" />
-        <text x="20" y="30" class="legend-main">📄 Outputs / Reports</text>
-        <text x="20" y="52" class="legend-sub">Forecast, anomaly, and</text>
-        <text x="20" y="68" class="legend-sub">optimization reports</text>
-    </g>
+        <!-- Legend: Outputs -->
+        <g transform="translate(1170, 630)">
+            <rect x="0" y="0" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#86EFAC" />
+            <text x="20" y="30" font-size="15px" font-weight="700" fill="#111827">📄 Outputs / Reports</text>
+            <text x="20" y="52" font-size="12.5px" fill="#4B5563">Forecast, anomaly, and</text>
+            <text x="20" y="68" font-size="12.5px" fill="#4B5563">optimization reports</text>
+        </g>
 
-    <!-- Legend: Apps -->
-    <g transform="translate(1170, 735)">
-        <rect x="0" y="0" width="260" height="80" class="box bg-teal" />
-        <text x="20" y="35" class="legend-main">💻 Deployment / Apps</text>
-        <text x="20" y="58" class="legend-sub">Public dashboard and local API</text>
+        <!-- Legend: Apps -->
+        <g transform="translate(1170, 735)">
+            <rect x="0" y="0" width="260" height="80" rx="12" filter="url(#shadow)" stroke-width="2" fill="#ECFEFF" stroke="#67E8F9" />
+            <text x="20" y="35" font-size="15px" font-weight="700" fill="#111827">💻 Deployment / Apps</text>
+            <text x="20" y="58" font-size="12.5px" fill="#4B5563">Public dashboard and local API</text>
+        </g>
     </g>
 </svg>
