@@ -64,31 +64,65 @@ The exploratory forecasting notebook also compared more model families. Its **Ca
 - **Outputs:** Save versioned CSV, Parquet and JSON reports under `application_runs`; store model artifacts and metadata locally with MLflow.
 - **Delivery:** Show the historical results in Streamlit; optionally use FastAPI for report endpoints and guarded saved-model inference on a local backend.
 
-### What the main files do
+### Project structure
 
-| File or directory | Responsibility | Main output or consumer |
-|---|---|---|
-| `etl_config.json` | Defines systems, year, sensor inputs and quality settings | Used by the ETL |
-| `src/greenforge_ai/ingestion/xz_to_parquet.py` | Reads large `.csv.xz` files and aligns five-second timestamps | Normalized sensor files |
-| `src/greenforge_ai/ingestion/dwd_client.py` | Fetches historical weather | DWD external-data cache |
-| `src/greenforge_ai/ingestion/smard_client.py` | Fetches historical market prices | SMARD external-data cache |
-| `src/greenforge_ai/transformations/` | Applies units, consistency checks and missing-data rules | Validated `cleaned.parquet` |
-| `src/greenforge_ai/pipelines/etl_pipeline.py` | Orchestrates ingestion, cleaning and safe publication | `data/processed/manifest.json` and Parquet outputs |
-| `src/greenforge_ai/pipelines/feature_pipeline.py` | Builds complete 15-, 30- and 60-minute summaries and ML tables | `eda_*min.parquet`, `ml.parquet` |
-| `src/greenforge_ai/features/` | Provides time-series features, shared-data helpers and emissions estimates | Used by notebooks and pipelines |
-| `notebooks/EDA/` | Three notebooks that explore the energy and business questions | Figures and explanations |
-| `notebooks/model_training/` | Three research notebooks for forecasting, anomalies and scheduling | `reports/ml_short_term/notebook_runs/` |
-| `src/greenforge_ai/training/train_forecasting.py` | Builds past-only features, trains models and produces 15-minute forecasts | Prediction CSV/Parquet |
-| `src/greenforge_ai/training/train_anomaly.py` | Separates bad data from unusual patterns and groups review events | Monitoring Parquet and review CSV |
-| `src/greenforge_ai/training/validation.py` + `evaluation.py` | Enforces chronological evaluation and calculates fair metrics | Model evaluation records |
-| `src/greenforge_ai/optimization/constraints.py` | Defines permitted job starts, duration and grid-limit assumptions | Feasibility checks |
-| `src/greenforge_ai/optimization/scheduler.py` | Uses SciPy MILP to choose job times and compare scenarios | Daily cost, grid-energy and CO₂ results |
-| `src/greenforge_ai/pipelines/training_pipeline.py` | Runs the three application stages and logs experiments | `application_runs/` + local `mlruns/` |
-| `app/streamlit_app.py` | Displays historical forecasting, monitoring, scheduling and data quality | [Public dashboard](https://greenforge-ai.streamlit.app/) |
-| `app/main.py` | Serves report endpoints and optional `/predict` inference | Local FastAPI service |
-| `docker/` | Defines separate API, dashboard and MLflow-setup containers | Local Docker Compose deployment |
-| `.github/workflows/ci-cd.yaml` | Runs unit tests and checks Docker builds | Continuous integration checks |
-| `tests/` | Tests ETL, timing, forecasting, anomaly, API and optimizer contracts | Regression checks |
+```text
+GreenForge-AI/
+│
+├── app/                             # Dashboard and API
+│   ├── streamlit_app.py             # Public Streamlit dashboard
+│   ├── main.py                      # FastAPI + optional model inference
+│   └── requirements.txt            # Dashboard dependencies
+│
+├── data/                            # Local data workspace (not in GitHub)
+│   ├── raw/spark_raw/               # Extracted TEC_48S and IPE_PV archives
+│   ├── raw/extracted/               # Normalized sensor readings
+│   ├── external/                    # DWD weather + SMARD electricity prices
+│   └── processed/                   # Cleaned Parquet, features and manifest
+│
+├── src/greenforge_ai/               # Reusable Python package
+│   ├── ingestion/                   # Large-file readers and API clients
+│   ├── transformations/             # Cleaning and quality checks
+│   ├── features/                    # Time-series and emissions features
+│   ├── pipelines/
+│   │   ├── etl_pipeline.py          # ETL orchestration and safe publication
+│   │   ├── feature_pipeline.py      # 15/30/60-min data + ML tables
+│   │   └── training_pipeline.py     # Forecast → anomaly → MILP; MLflow
+│   ├── training/
+│   │   ├── train_forecasting.py     # Next-15-minute power forecasts
+│   │   ├── train_anomaly.py         # Advisory anomaly monitoring
+│   │   ├── evaluation.py            # Forecast and review metrics
+│   │   └── validation.py            # Time-safe data contracts
+│   ├── optimization/
+│   │   ├── scheduler.py             # MILP energy-aware scheduling
+│   │   └── constraints.py           # Job timing and capacity rules
+│   └── utils/                       # Logging, config and safe file writes
+│
+├── notebooks/                       # Six research notebooks
+│   ├── EDA/                         # Machine, grid/weather and plant analysis
+│   └── model_training/              # Forecast, anomaly and MILP experiments
+│
+├── reports/ml_short_term/
+│   ├── notebook_runs/               # Exploratory experiment results
+│   └── application_runs/            # Saved reports used by the dashboard
+├── mlruns/                          # Local MLflow models and tracking
+│
+├── docker/                          # Local containerized services
+│   ├── Dockerfile                   # Multi-stage container builds
+│   ├── compose.yaml                 # API + dashboard + MLflow setup
+│   └── requirements-*.txt           # Service-specific dependencies
+│
+├── tests/                           # ETL, API, model and MILP tests
+│   ├── etl/
+│   └── unit/
+├── .github/workflows/ci-cd.yaml     # GitHub Actions tests + Docker builds
+├── etl_config.json                  # ETL systems, inputs and quality rules
+├── requirements.txt                 # Full development dependencies
+├── setup.py                         # Installable package configuration
+├── pytest.ini                       # Test configuration
+├── LICENSE                          # MIT License
+└── README.md                        # Project documentation
+```
 
 **Two sets of reports serve different purposes.** `notebook_runs/` preserves exploratory research; `application_runs/` contains the matching three-stage run consumed by the public dashboard. The cloud dashboard reads these saved reports directly and does **not** retrain models, call a private API or solve a new MILP.
 
