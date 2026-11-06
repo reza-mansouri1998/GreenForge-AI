@@ -1,0 +1,33 @@
+{
+  "work_start_hour": 8,
+  "work_end_hour": 18,
+  "slot_minutes": 15,
+  "job_power_kw": [
+    1.2,
+    1.2
+  ],
+  "job_steps": [
+    4,
+    4
+  ],
+  "grid_capacity_kw": 4.0,
+  "other_load_kw": 0.0,
+  "shared_pv": true,
+  "allowed_weekdays": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "blocked_starts": [],
+  "minimum_pv_coverage": 0.8,
+  "minimum_prior_samples": 8,
+  "scenario_weights": [
+    0.15,
+    0.35,
+    0.5
+  ],
+  "carbon_shadow_eur_per_kg": 0.02,
+  "emission_factor_kg_per_kwh": 0.363
+}

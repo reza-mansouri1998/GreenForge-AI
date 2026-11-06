@@ -1,0 +1,9 @@
+{
+  "system": "TEC_48S",
+  "intervals": 1504,
+  "quality_valid_intervals": 1503,
+  "scored_assessment_intervals": 1503,
+  "review_intervals": 0,
+  "review_rate_pct": 0.0,
+  "confirmed_faults": null
+}

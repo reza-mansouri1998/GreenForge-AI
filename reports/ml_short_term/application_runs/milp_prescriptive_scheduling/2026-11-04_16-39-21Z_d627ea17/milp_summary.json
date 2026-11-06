@@ -1,0 +1,33 @@
+{
+  "matched_days": 11,
+  "skipped": {
+    "weekend": 6,
+    "unavailable_day": 0,
+    "invalid_observations": 0
+  },
+  "mean_early_cost_eur": 0.0933283281099977,
+  "mean_milp_cost_eur": 0.04318691907819692,
+  "mean_hindsight_cost_eur": 0.029891757691337596,
+  "mean_cost_saving_eur": 0.05014140903180076,
+  "mean_grid_reduction_kwh": 0.20950631313131327,
+  "mean_co2_reduction_kg": 0.07605079166666674,
+  "hypothetical_factory_jobs": true,
+  "actual_savings_verified": false,
+  "full_day_pv_forecasts_available": false,
+  "future_pv_used_for_selection": false,
+  "pv_prediction_minutes": 15,
+  "remaining_pv_slots_from_pretest_profile": 39,
+  "monitoring_is_advisory": true,
+  "electricity_prices_are_archived_wholesale": true,
+  "price_publication_times_verified": false,
+  "price_known_at_08_assumed": true,
+  "forecast_0800_availability_audit": {
+    "status": "historical_zero_delay_assumption_passed",
+    "08_issue_forecasts_checked": 17,
+    "source_interval_start": "07:45",
+    "source_interval_end_and_decision_time": "08:00",
+    "forecasted_interval": "08:00-08:15",
+    "assumed_ingestion_delay_minutes": 0,
+    "real_time_publication_latency_verified": false
+  }
+}

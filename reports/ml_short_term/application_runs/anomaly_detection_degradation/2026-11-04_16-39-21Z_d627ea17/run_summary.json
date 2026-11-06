@@ -1,0 +1,23 @@
+{
+  "run_id": "d627ea17decc45ae943889e66fddb757",
+  "systems": [
+    {
+      "system": "TEC_48S",
+      "intervals": 35136,
+      "quality_valid_intervals": 32919,
+      "scored_assessment_intervals": 6584,
+      "review_intervals": 44,
+      "review_rate_pct": 0.6683,
+      "confirmed_faults": null
+    },
+    {
+      "system": "IPE_PV",
+      "intervals": 35136,
+      "quality_valid_intervals": 8256,
+      "scored_assessment_intervals": 1652,
+      "review_intervals": 53,
+      "review_rate_pct": 3.2082,
+      "confirmed_faults": null
+    }
+  ]
+}
