@@ -1,40 +1,129 @@
-digraph GreenForge {
-  graph [rankdir=TB, bgcolor="#ffffff", pad="0.32", nodesep="0.44", ranksep="0.68", splines=polyline, outputorder=edgesfirst, fontname="DejaVu Sans", label=<<FONT COLOR="#123044" POINT-SIZE="23"><B>GREENFORGE AI  |  FROM DATA TO DECISIONS</B></FONT><BR/><FONT COLOR="#60768a" POINT-SIZE="13">The same historical evidence powers the notebooks, API, and public dashboard</FONT>>, labelloc=t];
-  node [shape=box, style="rounded,filled", color="#d5e4ea", penwidth="1.4", fillcolor="#f6fafc", fontcolor="#123044", fontname="DejaVu Sans", margin="0.20,0.14"];
-  edge [color="#7296a2", arrowsize=0.7, penwidth=1.6];
+digraph architecture {
+    // Global Diagram Settings
+    graph [
+        bgcolor="#F8FAFC",
+        fontname="system-ui, -apple-system, sans-serif",
+        nodesep=0.8,
+        ranksep=0.8,
+        splines=ortho,
+        rankdir=TB,
+        pad="0.5"
+    ];
 
-  m [label=<<B>TEC_48S.zip</B><BR/><FONT POINT-SIZE="10">Machine sensor readings</FONT>>, fillcolor="#eaf4ff"];
-  p [label=<<B>IPE_PV.zip</B><BR/><FONT POINT-SIZE="10">Solar PV readings</FONT>>, fillcolor="#eaf4ff"];
-  ext [label=<<B>DWD + SMARD</B><BR/><FONT POINT-SIZE="10">Weather + market prices</FONT>>, fillcolor="#eaf4ff"];
-  {rank=same; m;p;ext}
-  m->p [style=invis]; p->ext [style=invis];
+    // Global Title
+    labelloc="t";
+    label=<
+        <table border="0" cellborder="0" cellpadding="0">
+            <tr><td align="center"><font point-size="28" color="#111827"><b>AI_Powered Sustainable Manufacturing Optimization</b></font></td></tr>
+            <tr><td align="center"><font point-size="16" color="#4B5563">From raw industrial data to forecasts, anomaly monitoring, optimization, API, and public dashboard</font></td></tr>
+            <tr><td> </td></tr>
+        </table>
+    >;
 
-  etl [label=<<B>etl_pipeline.py</B><BR/><FONT POINT-SIZE="10">Reads, aligns and validates 5-second data</FONT><BR/><FONT POINT-SIZE="10">ingestion/ + transformations/ + feature_pipeline.py</FONT>>, fillcolor="#d9f4ef", color="#8dcfc0"];
-  m->etl; p->etl; ext->etl;
-  processed [label=<<B>data/processed/</B><BR/><FONT POINT-SIZE="10">cleaned.parquet  ·  eda_15min.parquet</FONT><BR/><FONT POINT-SIZE="10">ML tables + manifest.json</FONT>>, fillcolor="#eff8f4", color="#add5c5"];
-  etl->processed;
+    // Global Node and Edge Settings
+    node [
+        fontname="system-ui, -apple-system, sans-serif",
+        shape=box,
+        style="filled,rounded",
+        penwidth=2,
+        margin="0.3,0.2"
+    ];
+    edge [
+        color="#9CA3AF",
+        penwidth=2.5,
+        arrowhead="vee"
+    ];
 
-  eda [label=<<B>notebooks/EDA/</B><BR/><FONT POINT-SIZE="10">3 notebooks: inspect machine, solar,</FONT><BR/><FONT POINT-SIZE="10">prices and shared-load scenarios</FONT>>, fillcolor="#fff6e8", color="#e6d0ac"];
-  orchestrator [label=<<B>training_pipeline.py</B><BR/><FONT POINT-SIZE="10">Time-safe experiments + MLflow tracking</FONT>>, fillcolor="#dcecfb", color="#a0bddc"];
-  {rank=same; eda; orchestrator}
-  eda->orchestrator [style=invis];
-  processed -> eda [color="#d09a55"];
-  processed -> orchestrator;
+    // ==========================================
+    // MAIN FLOWCHART PIPELINE
+    // ==========================================
+    subgraph cluster_pipeline {
+        border=0;
+        style=invis; // Keeps it grouped without a visible border
 
-  forecasting [label=<<B>train_forecasting.py</B><BR/><FONT POINT-SIZE="10">15-min predictions (LightGBM / Ridge)</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
-  anomaly [label=<<B>train_anomaly.py</B><BR/><FONT POINT-SIZE="10">Quality checks + advisory review flags</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
-  milp [label=<<B>scheduler.py + constraints.py</B><BR/><FONT POINT-SIZE="10">MILP job timing + cost/CO2 scenarios</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
-  {rank=same; forecasting; anomaly; milp}
-  forecasting->anomaly [color="#508da9"];
-  anomaly->milp [color="#508da9"];
-  orchestrator->forecasting;
+        // 1. Data Sources (Blue)
+        node [fillcolor="#EFF6FF", color="#93C5FD"];
+        TEC [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>🛢️ TEC_48S.zip</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Machine sensor readings</font></td></tr></table>>];
+        IPE [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>☀️ IPE_PV.zip</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Solar PV readings</font></td></tr></table>>];
+        DWD [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>🌧️ DWD + SMARD</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Weather + market prices</font></td></tr></table>>];
 
-  report [label=<<B>reports/ml_short_term/application_runs/</B><BR/><FONT POINT-SIZE="10">Forecast CSV/JSON  ·  Anomaly Parquet/CSV</FONT><BR/><FONT POINT-SIZE="10">MILP decisions CSV/JSON</FONT>>, fillcolor="#e1f5ec", color="#80c7a8"];
-  forecasting->report; anomaly->report; milp->report;
+        // 2. ETL (Green)
+        node [fillcolor="#F0FDF4", color="#86EFAC"];
+        ETL [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>⚙️ etl_pipeline.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Ingest, align, validate, aggregate</font></td></tr></table>>];
+        
+        // 3. Processed Data (Green)
+        PROCESSED [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>📂 data/processed/</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Cleaned tables, features, manifest</font></td></tr></table>>];
 
-  online [label=<<B>app/streamlit_app.py</B><BR/><FONT POINT-SIZE="10">PUBLIC website · reads reports directly</FONT>>, fillcolor="#d9f6e9", color="#6ecda2"];
-  api [label=<<B>app/main.py</B><BR/><FONT POINT-SIZE="10">LOCAL FastAPI · reports + optional inference</FONT>>, fillcolor="#e9edf7", color="#a8b4d0"];
-  {rank=same; online; api}
-  report -> online [color="#30a97e", penwidth=2.0];
-  report -> api [color="#7894b8"];
+        // 4. EDA (Orange) & Training Pipeline (Purple)
+        node [fillcolor="#FFFBEB", color="#FDE047"];
+        EDA [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>📊 notebooks/EDA/</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">3 notebooks: machine, solar, prices</font></td></tr></table>>];
+        
+        node [fillcolor="#FAF5FF", color="#D8B4FE"];
+        TRAINING_BASE [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>🧪 training_pipeline.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Time-safe experiments + MLFlow</font></td></tr></table>>];
+
+        // 5. Training Modules (Purple)
+        FORECAST [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>📈 train_forecasting.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">15-min forecasting</font></td></tr></table>>];
+        ANOMALY [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>⚠️ train_anomaly.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Advisory anomaly monitoring</font></td></tr></table>>];
+        SCHEDULER [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>🗓️ scheduler.py + constraints.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">MILP job scheduling</font></td></tr></table>>];
+
+        // 6. Reports Output (Green)
+        node [fillcolor="#F0FDF4", color="#86EFAC"];
+        REPORTS [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>📄 reports/ml_short_term/application_runs/</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Forecast, anomaly, and optimization reports</font></td></tr></table>>];
+
+        // 7. Apps & Deployments (Teal)
+        node [fillcolor="#ECFEFF", color="#67E8F9"];
+        STREAMLIT [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>💻 app/streamlit_app.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Public dashboard</font></td></tr></table>>];
+        FASTAPI [label=<<table border="0" cellborder="0" cellpadding="2"><tr><td align="center"><font point-size="14" color="#111827"><b>🔌 app/main.py</b></font></td></tr><tr><td align="center"><font point-size="12" color="#4B5563">Local FastAPI reports + inference</font></td></tr></table>>];
+
+        // Alignments (Forces nodes to be on the same horizontal level)
+        { rank=same; TEC; IPE; DWD; }
+        { rank=same; EDA; TRAINING_BASE; }
+        { rank=same; FORECAST; ANOMALY; SCHEDULER; }
+        { rank=same; STREAMLIT; FASTAPI; }
+
+        // Connecting Edges
+        TEC -> ETL;
+        IPE -> ETL;
+        DWD -> ETL;
+        ETL -> PROCESSED;
+        PROCESSED -> EDA;
+        PROCESSED -> TRAINING_BASE;
+        TRAINING_BASE -> FORECAST;
+        TRAINING_BASE -> ANOMALY;
+        TRAINING_BASE -> SCHEDULER;
+        FORECAST -> REPORTS;
+        ANOMALY -> REPORTS;
+        SCHEDULER -> REPORTS;
+        REPORTS -> STREAMLIT;
+        REPORTS -> FASTAPI;
+    }
+
+    // ==========================================
+    // SIDEBAR LEGEND
+    // ==========================================
+    subgraph cluster_legend {
+        label=<<b>Pipeline Stages</b>>;
+        fontsize=18;
+        color="#E5E7EB";
+        penwidth=2;
+        bgcolor="#FFFFFF";
+        style="rounded";
+        margin=20;
+
+        node [shape=box, style="filled,rounded", penwidth=2, width=3.5, margin="0.3,0.2"];
+        
+        LEGEND_1 [fillcolor="#EFF6FF", color="#93C5FD", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>🛢️ Data Sources</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Raw industrial, solar, weather,<br/>and market data</font></td></tr></table>>];
+        LEGEND_2 [fillcolor="#F0FDF4", color="#86EFAC", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>⚙️ ETL / Data Processing</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Ingest, align, validate, and prepare</font></td></tr></table>>];
+        LEGEND_3 [fillcolor="#FFFBEB", color="#FDE047", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>📊 Exploration (EDA)</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Understand data and scenarios</font></td></tr></table>>];
+        LEGEND_4 [fillcolor="#FAF5FF", color="#D8B4FE", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>🧪 Training / Modeling</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Experiments and model training<br/>(forecasting, anomaly, optimization)</font></td></tr></table>>];
+        LEGEND_5 [fillcolor="#F0FDF4", color="#86EFAC", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>📄 Outputs / Reports</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Forecast, anomaly, and<br/>optimization reports</font></td></tr></table>>];
+        LEGEND_6 [fillcolor="#ECFEFF", color="#67E8F9", label=<<table border="0" cellborder="0" cellpadding="1"><tr><td align="left"><font point-size="14" color="#111827"><b>💻 Deployment / Apps</b></font></td></tr><tr><td align="left"><font point-size="12" color="#4B5563">Public dashboard and local API</font></td></tr></table>>];
+
+        // Invisible connections to keep the legend neatly stacked
+        edge [style=invis];
+        LEGEND_1 -> LEGEND_2 -> LEGEND_3 -> LEGEND_4 -> LEGEND_5 -> LEGEND_6;
+    }
+
+    // Invisible positioning hack to ensure the legend sits on the right side of the main flow
+    DWD -> LEGEND_1 [style=invis, minlen=1.5];
 }
