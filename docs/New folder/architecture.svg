@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1060" width="100%" height="100%">
+    <defs>
+        <!-- Arrowhead Markers -->
+        <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#9CA3AF" />
+        </marker>
+        <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#A78BFA" />
+        </marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#6EE7B7" />
+        </marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#93C5FD" />
+        </marker>
+        <!-- Drop Shadow -->
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-opacity="0.04" flood-color="#000000" />
+        </filter>
+    </defs>
+
+    <!-- Canvas Background -->
+    <rect width="100%" height="100%" fill="#F8FAFC" />
+
+    <!-- ======================= -->
+    <!--     CONNECTOR LINES     -->
+    <!-- ======================= -->
+    <!-- Row 1 to Row 2 Container -->
+    <path d="M 270 140 L 270 160 L 750 160" fill="none" stroke="#9CA3AF" stroke-width="2.5" />
+    <path d="M 1230 140 L 1230 160 L 750 160" fill="none" stroke="#9CA3AF" stroke-width="2.5" />
+    <path d="M 750 140 L 750 186" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    
+    <!-- Row 2 Inner (Restored ETL arrows) -->
+    <path d="M 490 285 L 536 285" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    <path d="M 960 285 L 1006 285" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    
+    <!-- Row 2 to Row 3 -->
+    <path d="M 750 350 L 750 386" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    
+    <!-- Row 3 to Row 4 -->
+    <path d="M 750 480 L 750 516" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    <path d="M 750 500 L 270 500 L 270 516" fill="none" stroke="#9CA3AF" stroke-width="2.5" marker-end="url(#arrow-gray)" />
+    
+    <!-- Row 4 ML to Row 5 Forecasting (Purple) -->
+    <path d="M 990 610 L 990 630 L 270 630 L 270 646" fill="none" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrow-purple)" />
+    
+    <!-- Row 5 Inner (Purple) -->
+    <path d="M 490 700 L 526 700" fill="none" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrow-purple)" />
+    <path d="M 970 700 L 1006 700" fill="none" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrow-purple)" />
+    
+    <!-- Row 5 O to Row 6 R (Green) -->
+    <path d="M 1230 750 L 1230 770 L 750 770 L 750 786" fill="none" stroke="#6EE7B7" stroke-width="2.5" marker-end="url(#arrow-green)" />
+    
+    <!-- Row 6 R to Row 7 Apps (Blue) -->
+    <path d="M 750 880 L 750 900" fill="none" stroke="#93C5FD" stroke-width="2.5" />
+    <path d="M 750 900 L 390 900 L 390 916" fill="none" stroke="#93C5FD" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+    <path d="M 750 900 L 1110 900 L 1110 916" fill="none" stroke="#93C5FD" stroke-width="2.5" marker-end="url(#arrow-blue)" />
+
+
+    <!-- ======================= -->
+    <!--     PIPELINE BOXES      -->
+    <!-- ======================= -->
+    <g font-family="system-ui, -apple-system, sans-serif" text-anchor="middle">
+        
+        <!-- ======================= -->
+        <!-- ROW 1: INPUTS           -->
+        <!-- ======================= -->
+        <!-- Tab -->
+        <path d="M 50 60 L 50 35 Q 50 25 60 25 L 140 25 Q 150 25 150 35 L 150 60 Z" fill="#E0F2FE" />
+        <text x="100" y="45" font-size="14px" font-weight="700" fill="#0369A1">01 INPUTS</text>
+
+        <!-- Boxes -->
+        <rect x="50" y="60" width="440" height="80" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0F9FF" stroke="#BAE6FD" />
+        <circle cx="95" cy="100" r="22" fill="#E0F2FE" />
+        <text x="95" y="106" font-size="16px" font-weight="800" fill="#0369A1">M</text>
+        <text x="270" y="95" font-size="22px" font-weight="700" fill="#111827">🛢️ TEC_48S.zip</text>
+        <text x="270" y="120" font-size="16px" fill="#4B5563">Machine · 5-second readings</text>
+
+        <rect x="530" y="60" width="440" height="80" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0F9FF" stroke="#BAE6FD" />
+        <circle cx="575" cy="100" r="22" fill="#E0F2FE" />
+        <text x="575" y="106" font-size="16px" font-weight="800" fill="#0369A1">PV</text>
+        <text x="750" y="95" font-size="22px" font-weight="700" fill="#111827">☀️ IPE_PV.zip</text>
+        <text x="750" y="120" font-size="16px" fill="#4B5563">Solar PV measurements</text>
+
+        <rect x="1010" y="60" width="440" height="80" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0F9FF" stroke="#BAE6FD" />
+        <circle cx="1055" cy="100" r="22" fill="#E0F2FE" />
+        <text x="1055" y="106" font-size="16px" font-weight="800" fill="#0369A1">W</text>
+        <text x="1230" y="95" font-size="22px" font-weight="700" fill="#111827">🌧️ DWD + SMARD</text>
+        <text x="1230" y="120" font-size="16px" fill="#4B5563">Weather + electricity prices</text>
+
+        <!-- ======================= -->
+        <!-- ROW 2: DATA ENGINEERING -->
+        <!-- ======================= -->
+        <rect x="50" y="190" width="1400" height="160" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0FDFA" stroke="#99F6E4" />
+        <text x="145" y="225" font-size="16px" font-weight="800" fill="#0F766E">02 DATA ENGINEERING</text>
+        <text x="750" y="225" font-size="22px" font-weight="700" fill="#111827">⚙️ etl_pipeline.py · orchestrates the processing workflow</text>
+        
+        <!-- Inner Boxes -->
+        <rect x="70" y="240" width="420" height="90" rx="10" stroke-width="1.5" fill="#FFFFFF" stroke="#99F6E4" />
+        <text x="280" y="265" font-size="16px" font-weight="800" fill="#0F766E">01 INGEST + ALIGN</text>
+        <text x="280" y="290" font-size="20px" font-weight="700" fill="#111827">📥 xz_to_parquet.py + API clients</text>
+        <text x="280" y="315" font-size="15px" fill="#6B7280">Sensor timestamps + external data</text>
+
+        <rect x="540" y="240" width="420" height="90" rx="10" stroke-width="1.5" fill="#FFFFFF" stroke="#99F6E4" />
+        <text x="750" y="265" font-size="16px" font-weight="800" fill="#0F766E">02 CLEAN + VALIDATE</text>
+        <text x="750" y="290" font-size="20px" font-weight="700" fill="#111827">✅ clean_telemetry.py</text>
+        <text x="750" y="315" font-size="15px" fill="#6B7280">Gaps, quality and physical checks</text>
+
+        <rect x="1010" y="240" width="420" height="90" rx="10" stroke-width="1.5" fill="#FFFFFF" stroke="#99F6E4" />
+        <text x="1220" y="265" font-size="16px" font-weight="800" fill="#0F766E">03 AGGREGATE + PUBLISH</text>
+        <text x="1220" y="290" font-size="20px" font-weight="700" fill="#111827">📊 feature_pipeline.py</text>
+        <text x="1220" y="315" font-size="15px" fill="#6B7280">15-min Parquet + traceable outputs</text>
+
+        <!-- ======================= -->
+        <!-- ROW 3: PROCESSED        -->
+        <!-- ======================= -->
+        <rect x="350" y="390" width="800" height="90" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#A7F3D0" />
+        <circle cx="395" cy="435" r="22" fill="#DCFCE7" />
+        <text x="395" y="441" font-size="16px" font-weight="800" fill="#166534">DB</text>
+        <text x="750" y="430" font-size="24px" font-weight="700" fill="#111827">📂 data/processed/</text>
+        <text x="750" y="455" font-size="16px" fill="#4B5563">Cleaned Parquet · EDA/ML features · manifest.json</text>
+
+        <!-- ======================= -->
+        <!-- ROW 4: EXPLORE + TRAIN  -->
+        <!-- ======================= -->
+        <!-- Tab -->
+        <path d="M 50 520 L 50 495 Q 50 485 60 485 L 200 485 Q 210 485 210 495 L 210 520 Z" fill="#F3E8FF" />
+        <text x="130" y="505" font-size="14px" font-weight="700" fill="#6B21A8">03 EXPLORE + TRAIN</text>
+
+        <rect x="50" y="520" width="440" height="90" rx="14" filter="url(#shadow)" stroke-width="2" fill="#FFFBEB" stroke="#FDE047" />
+        <circle cx="95" cy="565" r="22" fill="#FEF9C3" />
+        <text x="95" y="571" font-size="16px" font-weight="800" fill="#B45309">EDA</text>
+        <text x="270" y="555" font-size="22px" font-weight="700" fill="#111827">📊 notebooks/EDA/</text>
+        <text x="270" y="580" font-size="16px" fill="#4B5563">Machine, solar, grid + price patterns</text>
+
+        <rect x="530" y="520" width="920" height="90" rx="14" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#E9D5FF" />
+        <circle cx="575" cy="565" r="22" fill="#F3E8FF" />
+        <text x="575" y="571" font-size="16px" font-weight="800" fill="#6B21A8">ML</text>
+        <text x="990" y="555" font-size="22px" font-weight="700" fill="#111827">🧪 training_pipeline.py</text>
+        <text x="990" y="580" font-size="16px" fill="#4B5563">Runs forecasts → anomaly review → MILP; tracks models in MLflow</text>
+
+        <!-- ======================= -->
+        <!-- ROW 5: MODULES          -->
+        <!-- ======================= -->
+        <rect x="50" y="650" width="440" height="100" rx="14" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#E9D5FF" />
+        <circle cx="95" cy="700" r="22" fill="#F3E8FF" />
+        <text x="95" y="706" font-size="16px" font-weight="800" fill="#6B21A8">F</text>
+        <text x="270" y="682" font-size="22px" font-weight="700" fill="#111827">📈 train_forecasting.py</text>
+        <text x="270" y="706" font-size="16px" fill="#4B5563">15-min machine + solar forecasts</text>
+        <text x="270" y="728" font-size="15px" fill="#6B7280">LightGBM / Ridge · saved test predictions</text>
+
+        <rect x="530" y="650" width="440" height="100" rx="14" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#E9D5FF" />
+        <circle cx="575" cy="700" r="22" fill="#F3E8FF" />
+        <text x="575" y="706" font-size="16px" font-weight="800" fill="#6B21A8">A</text>
+        <text x="750" y="682" font-size="22px" font-weight="700" fill="#111827">⚠️ train_anomaly.py</text>
+        <text x="750" y="706" font-size="16px" fill="#4B5563">Regime-aware advisory review</text>
+        <text x="750" y="728" font-size="15px" fill="#6B7280">Quality states + review episodes</text>
+
+        <rect x="1010" y="650" width="440" height="100" rx="14" filter="url(#shadow)" stroke-width="2" fill="#FAF5FF" stroke="#E9D5FF" />
+        <circle cx="1055" cy="700" r="22" fill="#F3E8FF" />
+        <text x="1055" y="706" font-size="16px" font-weight="800" fill="#6B21A8">O</text>
+        <text x="1230" y="682" font-size="22px" font-weight="700" fill="#111827">🗓️ scheduler.py + constraints.py</text>
+        <text x="1230" y="706" font-size="16px" fill="#4B5563">Two-job MILP scheduling</text>
+        <text x="1230" y="728" font-size="15px" fill="#6B7280">Cost, grid and CO₂ comparisons</text>
+
+        <!-- ======================= -->
+        <!-- ROW 6: REPORTS          -->
+        <!-- ======================= -->
+        <rect x="250" y="790" width="1000" height="90" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0FDF4" stroke="#A7F3D0" />
+        <circle cx="295" cy="835" r="22" fill="#DCFCE7" />
+        <text x="295" y="841" font-size="16px" font-weight="800" fill="#166534">R</text>
+        <text x="750" y="825" font-size="24px" font-weight="700" fill="#111827">📄 reports/ml_short_term/application_runs/</text>
+        <text x="750" y="855" font-size="16px" fill="#4B5563">Version-matched CSV, JSON + Parquet · historical evidence for the apps</text>
+
+        <!-- ======================= -->
+        <!-- ROW 7: APPS             -->
+        <!-- ======================= -->
+        <rect x="50" y="920" width="680" height="100" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0FDFA" stroke="#99F6E4" />
+        <circle cx="95" cy="970" r="22" fill="#CCFBF1" />
+        <text x="95" y="976" font-size="16px" font-weight="800" fill="#0F766E">WEB</text>
+        <text x="390" y="952" font-size="22px" font-weight="700" fill="#111827">💻 PUBLIC · Streamlit Cloud</text>
+        <text x="390" y="976" font-size="16px" fill="#4B5563">app/streamlit_app.py · reports shown directly</text>
+        <text x="390" y="998" font-size="15px" fill="#6B7280">greenforge-ai.streamlit.app · no backend needed</text>
+
+        <rect x="770" y="920" width="680" height="100" rx="14" filter="url(#shadow)" stroke-width="2" fill="#F0F9FF" stroke="#BAE6FD" />
+        <circle cx="815" cy="970" r="22" fill="#E0F2FE" />
+        <text x="815" y="976" font-size="16px" font-weight="800" fill="#0369A1">DO</text>
+        <text x="1110" y="952" font-size="22px" font-weight="700" fill="#111827">🔌 LOCAL · Docker Compose</text>
+        <text x="1110" y="976" font-size="16px" fill="#4B5563">Dockerfile + compose.yaml · API + dashboard</text>
+        <text x="1110" y="998" font-size="15px" fill="#6B7280">app/main.py · MLflow setup + optional tracking UI</text>
+
+    </g>
+</svg>

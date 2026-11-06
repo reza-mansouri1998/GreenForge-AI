@@ -1,177 +1,171 @@
-> 🚀 **[Explore the live dashboard — GreenForge AI](https://greenforge-ai.streamlit.app/)** · No setup or downloads required.
-
 # AI_Powered Sustainable Manufacturing optimization
 
-**GreenForge AI** · End-to-end data engineering, machine learning and energy-aware scheduling for industrial operations.
+> **🚀 [Explore the live GreenForge AI dashboard](https://greenforge-ai.streamlit.app/)** — see the results, charts and schedules without installing anything.
 
-I built this project to answer a practical question: **Can a factory use its energy data to understand machine behavior, forecast short-term demand, identify unusual readings and choose better times for flexible work?**
+**GreenForge AI** is my end-to-end industrial energy project: I turned noisy, five-second factory measurements into validated datasets, short-term forecasts, observations for engineers to review, and a prototype for choosing less expensive working hours.
 
-The result is a working pipeline—from high-frequency industrial measurements to an interactive dashboard and a constrained scheduling experiment. It uses real historical energy and electricity-price records, with clear boundaries between measured findings and hypothetical decisions.
+![GreenForge AI public dashboard](docs/dashboard-preview.png)
 
-[**Live dashboard**](https://greenforge-ai.streamlit.app/) · [**How it works**](#how-the-system-works) · [**Results**](#results-at-a-glance) · [**Run locally**](#run-the-project) · [**Research questions answered**](#answers-to-the-project-questions)
+**Start here:** [The dataset](#1-the-real-data-behind-the-project) · [Business problem](#2-the-business-problem-and-my-goal) · [Data engineering](#3-from-raw-noisy-files-to-trustworthy-data) · [Findings and results](#4-what-i-learned-and-what-the-models-achieved) · [Architecture](#how-the-system-works) · [Project files](#project-structure) · [Run locally](#run-the-project)
 
-![GreenForge AI public dashboard showing forecasting, anomaly monitoring and scheduling metrics](docs/dashboard-preview.png)
+## 1. The real data behind the project
 
-## The business problem
+I used **[SPARK-Raw](https://radar.kit.edu/radar/en/dataset/8efkkn0g9pcng5yd)**, an open industrial electricity dataset published by researchers at the **Karlsruhe Institute of Technology (KIT), Germany**. It contains unfiltered electrical readings from **22 industrial machines and one solar installation** on KIT's Campus North. The original files are sampled every **five seconds** and include active/reactive power, voltage, current, frequency and power-quality measurements. Depending on the equipment, the archive spans **2018–2024**; my study uses **2024**.
 
-Industrial energy is not used evenly throughout the day. Machine activity changes, solar generation varies, and electricity prices can change significantly between hours. This creates opportunities for better planning—but only if the underlying sensor readings are reliable and decisions use information that was actually available at the time.
+Instead of downloading all 22 machines, I chose two complementary sources:
 
-I approached the problem in four connected steps:
+- **`TEC_48S.zip` — a real manufacturing machine.** `TEC_48S` is a **VDF Boehringer 48 S metalworking lathe** in KIT's **TEC (Technic House) workshop**. A lathe rotates a workpiece while tools shape it. Its electrical demand changes between low-power periods and machining activity, making it useful for studying operating patterns, power peaks, forecasts and possible scheduling flexibility. **VDF Boehringer manufactured the lathe; KIT supplied the recorded data.**
+- **`IPE_PV.zip` — rooftop solar electricity.** This is a photovoltaic (PV) installation at KIT's **EPI facility**. The published study describes a **10.72 kWp** installation using **SMA Sunny Boy and Sunny Tripower inverters**. PV is an energy source, not a production machine: its output changes with sunlight and weather. I used it to explore how on-site renewables *might* affect grid demand and scheduling. The research paper calls this system **`EPI_PV`**; the downloaded archive and my pipeline use **`IPE_PV`**.
 
-1. **Make the data trustworthy.** Process large five-second sensor files, preserve missing readings and check measurement quality.
-2. **Understand the operation.** Explore machine use, solar availability, weather and electricity-price patterns.
-3. **Turn observations into signals.** Forecast the next 15 minutes and flag unusual readings for human review.
-4. **Test a decision.** Use mixed-integer linear programming (MILP) to compare flexible job schedules against a simple 08:00 start.
+**Why these two?** The lathe represents *energy demand* and the solar installation represents *variable energy supply*. Together they let me ask a meaningful scheduling question without building an unrealistic model of the whole factory. **They were measured in different KIT facilities; sharing their solar power is a hypothetical scenario, not a verified physical connection.**
 
-The important distinction: **this is a historical decision-support prototype, not a live factory controller**. The project evaluates what could be possible; it does not claim that a real factory changed its schedule or achieved savings.
+The dataset is intentionally raw. It contains missing readings, inconsistent naming and units, outliers and slightly misaligned timestamps—precisely the problems a practical data pipeline must address before modeling. The data is published under **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**. [Dataset record](https://doi.org/10.35097/8efkkn0g9pcng5yd) · [Scientific Data paper](https://doi.org/10.1038/s41597-026-06955-4).
 
-## Results at a glance
+![Usable 15-minute machine and solar data coverage](docs/figures/01-data-coverage.png)
 
-| Question | Verified project result | What it means |
-|---|---:|---|
-| Can machine demand be forecast 15 minutes ahead? | **R² 0.745** · LightGBM | Held-out TEC_48S machine-power evaluation |
-| Can solar power be forecast 15 minutes ahead? | **R² 0.824** · Ridge | Held-out IPE_PV evaluation |
-| Can unusual readings be identified for review? | **97 flagged intervals** | 44 machine + 53 solar; **not** 97 confirmed faults |
-| Can flexible timing reduce modeled electricity cost? | **53.7% lower mean cost** | MILP versus an assumed 08:00 start, over **11 historical days** |
-| Can the same workload need less grid electricity? | **0.210 kWh less per schedule** | Mean scenario difference, assuming access to the observed PV supply |
-| What about grid-related emissions? | **0.076 kg CO₂ less per schedule** | Mean modeled difference using a pinned 2024 annual emissions factor |
+*What the chart means:* The published application reports contain **32,919 valid machine intervals (93.7%)** and **8,256 valid solar intervals (23.5%)** on the 2024 quarter-hour grid. The solar record ends in early April. **A missing solar reading is not zero sunlight or a broken inverter.**
 
-*Reported application metrics come from the completed historical run `2026-11-04_16-39-21Z_d627ea17` in `reports/ml_short_term/application_runs/`.*
+## 2. The business problem and my goal
 
-**The cost result in context:** The two hypothetical jobs cost an average **€0.0933** at 08:00 versus **€0.0432** with the MILP: a difference of approximately **€0.0501 per two-job schedule**. The MILP was cheaper on **9 of 11 days** and more expensive on **2**. These are small, illustrative wholesale electricity costs—not savings on actual factory bills or a company-wide return on investment.
+Factories pay for energy while machines are running, waiting or starting up. Electricity prices can change through the day, and available solar power does not always match machine demand. But companies cannot make good scheduling decisions from unreliable sensor files or from forecasts that accidentally use future information.
 
-### Forecasting: the baseline matters
+My main question was:
 
-| System | Selected application model | Held-out observations | R² | Model MAE (kW) | Last-reading baseline MAE (kW) |
-|---|---|---:|---:|---:|---:|
-| TEC_48S · machine | LightGBM | 6,584 | 0.745 | 0.0086 | **0.0067** |
-| IPE_PV · solar | Ridge | 1,651 | 0.824 | 0.1963 | **0.1698** |
+> **Can historical machine and solar data help a factory understand electricity use, spot observations worth investigating, and choose better times for flexible work?**
 
-A simple forecast using the latest measured value has **lower overall MAE for both systems**. I kept this comparison visible rather than presenting R² alone as proof that ML is always better. The selected models perform better on *active-period MAE* and *matched-row RMSE*, but the overall MAE result shows that a low-cost baseline remains competitive. Many machine test readings are near zero, which is important when interpreting averages.
+I tackled that question in a practical order:
 
-The exploratory forecasting notebook also compared more model families. Its **CatBoost** entries reached observed test R² values of **0.748 (machine)** and **0.839 (solar)**, but those notebook champions were chosen after comparing test scores. The application pipeline instead uses its **training-CV selection policy** (LightGBM and Ridge) to avoid using the held-out test period to choose the deployed candidates. **Notebook benchmark results and application results are intentionally reported separately.**
+1. **Trust the measurements.** Make large, inconsistent sensor files usable without hiding gaps or inventing values.
+2. **Understand the operation.** Identify when the machine draws power, when solar is available and when market prices move.
+3. **Predict and monitor.** Test whether the next 15-minute power interval can be forecast and flag unusual behavior for human review.
+4. **Make a decision.** Solve a constrained scheduling example and compare it with starting the same work at 08:00.
+
+**The business value:** This is a working, repeatable **decision-support prototype**—from raw files through ETL, experiments and saved models to a public dashboard. It is **not a live factory controller**, and no production schedule or actual factory bill was changed.
+
+## 3. From raw, noisy files to trustworthy data
+
+A large dataset is not automatically a reliable one. My first engineering job was to make the source *traceable, physically sensible and safe to use for time-series modeling*.
+
+![Five steps used in the GreenForge AI ETL pipeline](docs/figures/02-etl-quality-gates.png)
+
+**How the pipeline handles the raw data**
+
+**1 — Read large files without loading everything into memory.** `src/greenforge_ai/ingestion/xz_to_parquet.py` reads compressed **`.csv.xz`** sensor files in batches. I used **Pandas, DuckDB and PyArrow** to process, sort and write compressed Parquet tables with controlled memory use. `dwd_client.py` and `smard_client.py` fetch and cache historical weather and electricity-price data separately.
+
+**2 — Put readings on a consistent clock.** Sensors do not always land exactly on a five-second boundary. The ingestion code rounds to the nearest five-second tick, resolves duplicates and checks that records are correctly ordered. The source's **Europe/Berlin publisher wall-clock labels** are preserved rather than incorrectly declared to be UTC. Unresolvable daylight-saving-time joins to external data are left missing instead of guessed.
+
+**3 — Check the physics, not just the file format.** `transformations/validate.py` and `clean_telemetry.py` apply source-specific unit conversions, sensor limits and relationships between electrical measurements (for example, total power versus the three phases). Unverified channels are kept out of trusted targets; original files are retained for review. Suspect values are flagged or rejected, **not quietly repaired**.
+
+**4 — Keep missing data missing.** The pipeline records gaps, outliers and alignment status. A 15-minute interval contains **180 five-second positions**; an aggregate is only accepted as complete when its required measurements are present. `feature_pipeline.py` creates **15-, 30- and 60-minute** summaries, energy estimates and ML-ready tables. These summaries are not themselves permission to claim full-year coverage.
+
+**5 — Publish only checked outputs.** `etl_pipeline.py` writes cleaned data, features, quality information and a **`manifest.json`** with hashes and provenance under `data/processed/`. File locks, validation checks and atomic replacement help prevent partial or corrupted results from appearing as completed runs. `tests/etl/` and the GitHub Actions workflow test critical behavior, including timing, missing values and safe publication.
+
+**Why this approach?** Filling every gap with zero would make solar generation, machine activity and anomaly scores misleading. Ignoring timestamp errors could also put a future observation into a past forecast. The pipeline favors **correctness and honest missing-data reporting over a perfectly smooth chart**.
+
+## 4. What I learned — and what the models achieved
+
+The six notebooks move from **understanding the data**, to **predicting**, **monitoring**, and finally **testing a scheduling decision**. The figures below come from notebook outputs or the saved, matching three-stage application run—not invented demo numbers.
+
+### 4.1 Exploratory analysis: what was happening before modeling?
+
+I started with three notebooks in [`notebooks/EDA/`](notebooks/EDA): machine telemetry, solar/weather/prices, and a combined energy scenario. I used **time-series plots, daily and hourly profiles, gap/coverage checks, power-band comparisons, price distributions and measured-energy balances**.
+
+**Machine — `01_machine_telemetry_eda.ipynb`.** I found **276 observed higher-power stretches** (above 100 W), totaling **142.7 hours**; **89.5%** lasted less than an hour. The machine does **not** draw high power continuously. A recorded peak of **17.658 kW** had many nearby missing/rejected readings, so I treated it as a reading to investigate rather than a proven startup surge. Low-power readings averaged **66.9 W**, but that alone does not prove avoidable idle waste.
+
+**Solar and prices — `02_energy_grid_weather_eda.ipynb`.** The usable PV season produced **832.0 kWh of observed energy**, with average output strongest around **noon**. The solar–air-temperature correlation was only **0.06** across **86 complete midday windows**; without irradiance and panel temperature, I could not isolate a heat-related efficiency loss. The historical price data had a **€96.32/MWh median daily spread** across complete days and **457 negative-price hours**. These are wholesale-market observations, **not the factory's actual tariff**.
+
+![Observed machine activity lengths and solar daily profile](docs/figures/03-eda-behavior.png)
+
+**Joint scenario — `03_plant_optimization_eda.ipynb`.** I aligned machine and PV measurements on matching 15-minute intervals and tested an *assumed* shared solar connection. Only **19.9%** of the full aligned timeline supported the comparison. On usable intervals, **44.10 kWh** of measured machine demand could be split into **9.00 kWh assigned to solar** and **35.10 kWh of modeled grid imports**. This is a limited historical scenario, **not proof that the TEC lathe consumed electricity from EPI's PV system**.
+
+![Scenario machine energy supplied from grid and PV](docs/figures/04-eda-shared-energy.png)
+
+**What changed my approach:** I needed short, leakage-safe forecasts; quality-aware monitoring instead of automatic fault labels; and an optimizer with explicit job rules rather than simply shifting an entire measured demand curve.
+
+### 4.2 Forecasting: can I predict the next 15 minutes?
+
+**Why 15 minutes?** It is a practical short decision window: the ETL already creates quarter-hour summaries, the latest completed readings offer useful context, and the scheduling experiment tests **15-minute start times**. A short horizon is more manageable than pretending to know machine production and solar output for an entire day.
+
+In [`01_energy_forecasting_benchmarks.ipynb`](notebooks/model_training/01_energy_forecasting_benchmarks.ipynb), I compared **Ridge, Random Forest, XGBoost, LightGBM and CatBoost** using past-power lags, rolling averages, variability and calendar features. The application pipeline evaluates with a **chronological 80/20 train/test split**, an embargo gap and **training-only time-series cross-validation**—so the test period does not choose the deployed model. A **last-reading (persistence)** forecast is the baseline.
+
+The application selected **LightGBM** for the lathe and **Ridge** for PV. On historical held-out periods they achieved **R² = 0.745** and **0.824**, respectively. They do **not** beat persistence on overall mean absolute error (MAE) for either system; they do better on certain active-period errors and matched-row RMSE. The notebook's exploratory CatBoost test leaders (**0.748** machine, **0.839** solar R²) are separate from the application's CV-selected results.
+
+![Measured forecasting MAE compared with a last-reading baseline](docs/figures/05-forecast-benchmarks.png)
+
+**Was forecasting enough?** Enough to produce a useful historical benchmark and one real **08:00–08:15 solar forecast** for the scheduler—not enough to know the next ten working hours. The notebook also evaluates longer PV horizons, but those do not solve full-day forecasting or validate live data availability.
+
+### 4.3 Anomaly detection: which readings deserve an engineer's attention?
+
+In [`02_anomaly_and_degradation.ipynb`](notebooks/model_training/02_anomaly_and_degradation.ipynb), I first checked coverage and sensor quality, then compared behavior in **lower- and higher-load regimes**. I tested **PCA, Local Outlier Factor, Isolation Forest and MiniBatch K-Means**, using earlier data to fit normal patterns and a later calibration period to set review thresholds. The final period was left for assessment. Simple rules also highlight large machine-power changes and avoid repeating the same solar-zero warning unnecessarily.
+
+The application reported **44 machine** and **53 PV intervals** flagged for review (**97 total**); the research notebook grouped alerts into **56 episodes**. I also compared electrical indicators under similar low-power conditions, including recorded power factor versus an independently calculated **P/S** ratio. Those checks exposed possible sensor inconsistencies, **not verified wear**.
+
+![Intervals flagged for review, versus assessed intervals](docs/figures/06-anomaly-review.png)
+
+**Was anomaly detection enough?** It created a focused list for a person to investigate, but the dataset has **no confirmed fault labels, maintenance outcomes or remaining-useful-life targets**. I cannot honestly report fault-detection accuracy, a degradation rate or predictive-maintenance savings.
+
+### 4.4 MILP: can forecasting and monitoring improve when work happens?
+
+In [`03_milp_prescriptive_scheduling.ipynb`](notebooks/model_training/03_milp_prescriptive_scheduling.ipynb), I used **Mixed-Integer Linear Programming (MILP)** with **SciPy/HiGHS** to choose when two *illustrative* jobs should run. Each job needs **1.2 kW for one hour**; they must be consecutive, fit between **08:00 and 18:00**, start on a 15-minute boundary and respect an assumed **4 kW** grid limit. The comparison is against the same two jobs starting at **08:00**.
+
+**How the ML parts helped:** The **08:00-issued PV forecast** informs only the first 15-minute slot. The other **39 slots** use historical solar profiles learned **before** the test period, including conservative scenarios—not hidden future observations. Anomaly and quality records are attached with **`available_at` timestamps** to show what was known before scheduling. **They are advisory context, not automatic safety constraints or reasons to stop a machine.** Actual solar observed later is used only to evaluate the decision and create a hindsight benchmark.
+
+On **11 matched historical days**, the MILP was cheaper than the 08:00 baseline on **9 days** and more expensive on **2**. Average modeled wholesale cost was **€0.0933 → €0.0432 per two-job schedule**, a **53.7% reduction**. Mean modeled grid use fell by **0.210 kWh** per schedule and estimated CO₂ by **0.076 kg**, using a fixed 2024 annual German electricity factor.
+
+![MILP mean and day-by-day modeled electricity costs](docs/figures/07-milp-results.png)
+
+**Was the MILP acceptable?** **Yes as a transparent, constrained historical experiment; not yet as a factory dispatch system.** The physical solar connection, real production orders, actual tariffs and price-publication timing were not verified. The jobs and flexibility were assumed, and the 15-minute forecast supports just one slot. The **53.7% is a modeled comparison, not money a factory has already saved**.
 
 ## How the system works
 
-![Data flow from industrial sensor files and public energy sources through ETL, notebooks, modeling, scheduling, application reports and the dashboard](docs/architecture.svg)
+![GreenForge AI full architecture from raw data through data engineering, modeling, reports, cloud dashboard and local Docker stack](docs/architecture.svg)
 
-**The workflow in plain language:**
-
-- **Input:** Raw machine and solar measurements from the KIT SPARK-Raw dataset, plus DWD weather and SMARD day-ahead electricity prices.
-- **ETL:** Stream, normalize and validate the measurements; generate five-second cleaned data and 15-minute analytical tables.
-- **Research:** Six notebooks investigate the business questions and compare modeling approaches.
-- **Application pipeline:** Train and evaluate forecasting models, produce advisory anomaly-monitoring records, and solve an illustrative MILP scheduling problem.
-- **Outputs:** Save versioned CSV, Parquet and JSON reports under `application_runs`; store model artifacts and metadata locally with MLflow.
-- **Delivery:** Show the historical results in Streamlit; optionally use FastAPI for report endpoints and guarded saved-model inference on a local backend.
+The **ETL pipeline** builds trusted data; the **training pipeline** generates three matching report sets; the public **Streamlit dashboard** reads the saved results without retraining. **FastAPI and Docker Compose** provide a separate local setup for API development and optional saved-model inference.
 
 ### Project structure
 
 ```text
 GreenForge-AI/
 │
-├── app/                             # Dashboard and API
-│   ├── streamlit_app.py             # Public Streamlit dashboard
-│   ├── main.py                      # FastAPI + optional model inference
-│   └── requirements.txt            # Dashboard dependencies
-│
-├── data/                            # Local data workspace (not in GitHub)
-│   ├── raw/spark_raw/               # Extracted TEC_48S and IPE_PV archives
-│   ├── raw/extracted/               # Normalized sensor readings
-│   ├── external/                    # DWD weather + SMARD electricity prices
-│   └── processed/                   # Cleaned Parquet, features and manifest
-│
-├── src/greenforge_ai/               # Reusable Python package
-│   ├── ingestion/                   # Large-file readers and API clients
-│   ├── transformations/             # Cleaning and quality checks
-│   ├── features/                    # Time-series and emissions features
+├── app/                             # Public Streamlit dashboard and local FastAPI
+│   ├── streamlit_app.py
+│   ├── main.py
+│   └── requirements.txt
+├── data/                            # Local data workspace (not committed)
+│   ├── raw/spark_raw/               # Extracted TEC_48S and IPE_PV ZIP contents
+│   ├── raw/extracted/               # Normalized readings
+│   ├── external/                    # DWD weather + SMARD prices
+│   └── processed/                   # Checked Parquet tables + manifest.json
+├── src/greenforge_ai/
+│   ├── ingestion/                   # Compressed-file readers and API clients
+│   ├── transformations/            # Sensor cleaning and physics checks
+│   ├── features/                   # Time series and energy/emissions features
 │   ├── pipelines/
-│   │   ├── etl_pipeline.py          # ETL orchestration and safe publication
-│   │   ├── feature_pipeline.py      # 15/30/60-min data + ML tables
-│   │   └── training_pipeline.py     # Forecast → anomaly → MILP; MLflow
-│   ├── training/
-│   │   ├── train_forecasting.py     # Next-15-minute power forecasts
-│   │   ├── train_anomaly.py         # Advisory anomaly monitoring
-│   │   ├── evaluation.py            # Forecast and review metrics
-│   │   └── validation.py            # Time-safe data contracts
-│   ├── optimization/
-│   │   ├── scheduler.py             # MILP energy-aware scheduling
-│   │   └── constraints.py           # Job timing and capacity rules
-│   └── utils/                       # Logging, config and safe file writes
-│
-├── notebooks/                       # Six research notebooks
-│   ├── EDA/                         # Machine, grid/weather and plant analysis
-│   └── model_training/              # Forecast, anomaly and MILP experiments
-│
+│   │   ├── etl_pipeline.py         # Ingest → validate → publish
+│   │   ├── feature_pipeline.py     # 15/30/60-min summaries
+│   │   └── training_pipeline.py    # Forecast → anomaly → MILP + MLflow
+│   ├── training/                    # Forecasting, anomaly detection, evaluation
+│   ├── optimization/                # SciPy MILP scheduler + constraints
+│   └── utils/                       # Logging, file locks and safe writes
+├── notebooks/
+│   ├── EDA/                         # Machine, solar/weather and plant scenarios
+│   └── model_training/              # Forecasting, anomaly and MILP research
 ├── reports/ml_short_term/
-│   ├── notebook_runs/               # Exploratory experiment results
-│   └── application_runs/            # Saved reports used by the dashboard
-├── mlruns/                          # Local MLflow models and tracking
-│
-├── docker/                          # Local containerized services
-│   ├── Dockerfile                   # Multi-stage container builds
-│   ├── compose.yaml                 # API + dashboard + MLflow setup
-│   └── requirements-*.txt           # Service-specific dependencies
-│
-├── tests/                           # ETL, API, model and MILP tests
-│   ├── etl/
-│   └── unit/
-├── .github/workflows/ci-cd.yaml     # GitHub Actions tests + Docker builds
-├── etl_config.json                  # ETL systems, inputs and quality rules
-├── requirements.txt                 # Full development dependencies
-├── setup.py                         # Installable package configuration
-├── pytest.ini                       # Test configuration
-├── LICENSE                          # MIT License
-└── README.md                        # Project documentation
+│   ├── notebook_runs/               # Research experiments
+│   └── application_runs/            # Historical results used by the dashboard
+├── mlruns/                          # Local MLflow artifacts and tracking
+├── docker/                          # Dockerfile, Compose, service requirements
+├── tests/                           # ETL and isolated ML/API/MILP tests
+├── .github/workflows/ci-cd.yaml     # CI checks and Docker image builds
+├── etl_config.json                  # ETL settings
+├── requirements.txt                 # Full local development environment
+├── setup.py                         # Package definition
+├── pytest.ini
+├── LICENSE
+└── README.md
 ```
 
-**Two sets of reports serve different purposes.** `notebook_runs/` preserves exploratory research; `application_runs/` contains the matching three-stage run consumed by the public dashboard. The cloud dashboard reads these saved reports directly and does **not** retrain models, call a private API or solve a new MILP.
-
-## What I investigated
-
-### 1. Exploratory data analysis
-
-The three notebooks in [`notebooks/EDA/`](notebooks/EDA) answer the questions that shaped the modeling work:
-
-| Notebook | Main question | Finding |
-|---|---|---|
-| `01_machine_telemetry_eda.ipynb` | Does the machine run continuously, and what should we investigate? | **142.7 observed hours** above 100 W, across **276 stretches**; **89.5%** lasted under an hour. Low-power readings averaged **66.9 W**. |
-| `02_energy_grid_weather_eda.ipynb` | When is solar available, and how much do weather and price change? | **832.0 kWh** of observed PV generation; strongest average production around noon. Across complete price days, the median intraday spread was **€96.32/MWh**. |
-| `03_plant_optimization_eda.ipynb` | How might machine demand and solar combine, and does timing matter? | On usable shared intervals, modeled machine demand was **44.10 kWh**, with **9.00 kWh** supplied by assumed shared PV and **35.10 kWh** imported from the grid. |
-
-The notebook work also identified important caveats:
-
-- A measured **17.658 kW** five-second machine peak had substantial missing or rejected readings nearby. It is a recorded value to investigate, not a verified startup transient or safe operating limit.
-- Across **86 complete midday windows**, the solar–air-temperature correlation was about **0.06**. Without irradiance and panel temperature, this does **not** establish a heat penalty.
-- The market data contained **457 negative-price hours**, but negative wholesale prices do not necessarily mean a negative customer bill.
-- Only about **19.9% of the aligned machine–solar timeline** supported the shared-load comparison. PV observations cover only the early part of 2024; missing periods were not replaced with zero generation.
-
-### 2. Machine learning and anomaly monitoring
-
-The three notebooks in [`notebooks/model_training/`](notebooks/model_training) move from descriptive analysis to tested decision-support methods:
-
-- **Forecasting:** Lagged power, rolling statistics and calendar features; chronological 80/20 split with a gap; training-only time-series cross-validation; comparisons with persistence. The application forecast horizon is **15 minutes**.
-- **Anomalies:** Quality checks before scoring, separate lower-/higher-load models, time-ordered reference/calibration/assessment periods, and advisory review events. The research compares PCA, Local Outlier Factor, Isolation Forest and MiniBatch K-Means. The application pipeline uses the selected regime-specific models.
-- **Degradation review:** Compares comparable electrical-load periods and checks inconsistent power-factor and current readings. **The dataset does not contain verified faults, maintenance histories or remaining useful life labels**, so wear cannot be confirmed.
-
-The application reports contain **97 intervals flagged for review**: **44 for TEC_48S** (0.67% of scored assessment intervals) and **53 for IPE_PV** (3.21%). The flags help a human find records worth examining; they are not diagnoses, downtime events or validated fault-detection accuracy.
-
-### 3. Prescriptive scheduling with MILP
-
-The final step tests whether flexible work could be moved to a less costly time.
-
-| Scheduling rule | Value in the experiment |
-|---|---|
-| Work | Two consecutive, hypothetical one-hour jobs, **1.2 kW each** (**2.4 kWh** total) |
-| Baseline | Begin at **08:00** |
-| Allowed window | **08:00–18:00**, Monday–Friday, 15-minute starts |
-| Grid capacity | Assumed **4.0 kW** |
-| Solar | Assumed to be shareable with the jobs; electrical connection **not verified** |
-| Objective | Risk-weighted electricity cost, plus an illustrative emissions preference |
-| Benchmark | **Hindsight**: cheapest feasible schedule using solar measured after the day ended |
-
-At **08:00**, the optimizer can use **one genuine 15-minute-ahead PV forecast** for 08:00–08:15. For the other **39** workday intervals, it uses **patterns learned before the test period**, including conservative low- and zero-solar scenarios. It does **not** look ahead at the day's actual future solar when choosing the schedule. Later observations are used only to evaluate the decision and calculate the hindsight benchmark.
-
-This design matters: a 15-minute forecast must not be presented as a complete ten-hour weather or production forecast. The model also assumes that archived price information was available when needed; real publication and ingestion latency have not been validated.
+---
 
 ## Tools and engineering practices
 
