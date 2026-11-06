@@ -1,0 +1,40 @@
+digraph GreenForge {
+  graph [rankdir=TB, bgcolor="#ffffff", pad="0.32", nodesep="0.44", ranksep="0.68", splines=polyline, outputorder=edgesfirst, fontname="DejaVu Sans", label=<<FONT COLOR="#123044" POINT-SIZE="23"><B>GREENFORGE AI  |  FROM DATA TO DECISIONS</B></FONT><BR/><FONT COLOR="#60768a" POINT-SIZE="13">The same historical evidence powers the notebooks, API, and public dashboard</FONT>>, labelloc=t];
+  node [shape=box, style="rounded,filled", color="#d5e4ea", penwidth="1.4", fillcolor="#f6fafc", fontcolor="#123044", fontname="DejaVu Sans", margin="0.20,0.14"];
+  edge [color="#7296a2", arrowsize=0.7, penwidth=1.6];
+
+  m [label=<<B>TEC_48S.zip</B><BR/><FONT POINT-SIZE="10">Machine sensor readings</FONT>>, fillcolor="#eaf4ff"];
+  p [label=<<B>IPE_PV.zip</B><BR/><FONT POINT-SIZE="10">Solar PV readings</FONT>>, fillcolor="#eaf4ff"];
+  ext [label=<<B>DWD + SMARD</B><BR/><FONT POINT-SIZE="10">Weather + market prices</FONT>>, fillcolor="#eaf4ff"];
+  {rank=same; m;p;ext}
+  m->p [style=invis]; p->ext [style=invis];
+
+  etl [label=<<B>etl_pipeline.py</B><BR/><FONT POINT-SIZE="10">Reads, aligns and validates 5-second data</FONT><BR/><FONT POINT-SIZE="10">ingestion/ + transformations/ + feature_pipeline.py</FONT>>, fillcolor="#d9f4ef", color="#8dcfc0"];
+  m->etl; p->etl; ext->etl;
+  processed [label=<<B>data/processed/</B><BR/><FONT POINT-SIZE="10">cleaned.parquet  ·  eda_15min.parquet</FONT><BR/><FONT POINT-SIZE="10">ML tables + manifest.json</FONT>>, fillcolor="#eff8f4", color="#add5c5"];
+  etl->processed;
+
+  eda [label=<<B>notebooks/EDA/</B><BR/><FONT POINT-SIZE="10">3 notebooks: inspect machine, solar,</FONT><BR/><FONT POINT-SIZE="10">prices and shared-load scenarios</FONT>>, fillcolor="#fff6e8", color="#e6d0ac"];
+  orchestrator [label=<<B>training_pipeline.py</B><BR/><FONT POINT-SIZE="10">Time-safe experiments + MLflow tracking</FONT>>, fillcolor="#dcecfb", color="#a0bddc"];
+  {rank=same; eda; orchestrator}
+  eda->orchestrator [style=invis];
+  processed -> eda [color="#d09a55"];
+  processed -> orchestrator;
+
+  forecasting [label=<<B>train_forecasting.py</B><BR/><FONT POINT-SIZE="10">15-min predictions (LightGBM / Ridge)</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
+  anomaly [label=<<B>train_anomaly.py</B><BR/><FONT POINT-SIZE="10">Quality checks + advisory review flags</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
+  milp [label=<<B>scheduler.py + constraints.py</B><BR/><FONT POINT-SIZE="10">MILP job timing + cost/CO2 scenarios</FONT>>, fillcolor="#e7f2ff", color="#9cbee2"];
+  {rank=same; forecasting; anomaly; milp}
+  forecasting->anomaly [color="#508da9"];
+  anomaly->milp [color="#508da9"];
+  orchestrator->forecasting;
+
+  report [label=<<B>reports/ml_short_term/application_runs/</B><BR/><FONT POINT-SIZE="10">Forecast CSV/JSON  ·  Anomaly Parquet/CSV</FONT><BR/><FONT POINT-SIZE="10">MILP decisions CSV/JSON</FONT>>, fillcolor="#e1f5ec", color="#80c7a8"];
+  forecasting->report; anomaly->report; milp->report;
+
+  online [label=<<B>app/streamlit_app.py</B><BR/><FONT POINT-SIZE="10">PUBLIC website · reads reports directly</FONT>>, fillcolor="#d9f6e9", color="#6ecda2"];
+  api [label=<<B>app/main.py</B><BR/><FONT POINT-SIZE="10">LOCAL FastAPI · reports + optional inference</FONT>>, fillcolor="#e9edf7", color="#a8b4d0"];
+  {rank=same; online; api}
+  report -> online [color="#30a97e", penwidth=2.0];
+  report -> api [color="#7894b8"];
+}
