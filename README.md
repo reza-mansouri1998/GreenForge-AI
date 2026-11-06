@@ -50,6 +50,8 @@ The raw `.csv.xz` files contain **gaps, outliers, inconsistent units and off-gri
 3. **Validate:** Keep bad or missing readings explicit; verify power relationships and data coverage.
 4. **Publish:** Build **15/30/60-minute Parquet** tables and ML features; write a provenance `manifest.json` with file hashes and safe publication checks.
 
+![GreenForge AI data engineering pipeline](docs/data-engineering-flowchart.png)
+
 **Why:** Reliable timestamps and honest gaps are essential for forecasting without data leakage and for avoiding false anomaly alerts.
 
 ![2024 data coverage](docs/figures/01-data-coverage.png)

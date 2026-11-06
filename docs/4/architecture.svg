@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1370" viewBox="0 0 1800 1370" role="img" aria-labelledby="title desc">
+<title id="title">GreenForge AI - project architecture</title><desc id="desc">Historical industrial data flows through extraction, validation and feature processing into notebooks and an MLflow-tracked forecasting, anomaly and MILP pipeline. Stored results serve a public Streamlit dashboard or a locally containerized FastAPI dashboard stack.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1 L9 5 L1 9Z" fill="#71879C"/></marker></defs>
+<rect width="1800" height="1370" fill="#F7F9FC"/>
+<rect x="0" y="0" width="1800" height="11" fill="#0D8A83"/>
+
+<text x="80" y="67" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="750" text-anchor="start" fill="#138477" letter-spacing="3">GREENFORGE AI  /  SYSTEM ARCHITECTURE</text>
+<text x="80" y="122" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="49" font-weight="800" text-anchor="start" fill="#14283D" letter-spacing="0">From industrial data to energy decisions</text>
+<text x="80" y="164" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="400" text-anchor="start" fill="#5B6B7D" letter-spacing="0">An end-to-end path: reliable data  ·  15-minute ML  ·  energy-aware scheduling  ·  two ways to run the app</text>
+<rect x="80" y="192" width="157" height="37" rx="18" fill="#E6F7F1" stroke="#E6F7F1" stroke-width="0"/>
+<text x="158.5" y="217" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="750" text-anchor="middle" fill="#0c7a6e" letter-spacing="0.8">01  INPUTS</text>
+<path d="M 315 322 V 341 H 900 V 358" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 900 322 V 358" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 1485 322 V 341 H 900" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 900 358 V 374" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="83" y="231" width="470" height="97" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="80" y="225" width="470" height="97" rx="20" fill="#F1F7FF" stroke="#BFDBF5" stroke-width="2"/>
+<circle cx="130" cy="271" r="25" fill="#D9EAFC"/>
+<text x="130" y="279" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#1E64A2" letter-spacing="0">M</text>
+<text x="175" y="268" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="27" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">TEC_48S.zip</text>
+<text x="175" y="300" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Machine · 5-second readings</text>
+<rect x="668" y="231" width="470" height="97" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="665" y="225" width="470" height="97" rx="20" fill="#F1F7FF" stroke="#BFDBF5" stroke-width="2"/>
+<circle cx="715" cy="271" r="25" fill="#D9EAFC"/>
+<text x="715" y="279" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#1E64A2" letter-spacing="0">PV</text>
+<text x="760" y="268" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="27" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">IPE_PV.zip</text>
+<text x="760" y="300" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Solar PV measurements</text>
+<rect x="1253" y="231" width="470" height="97" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="1250" y="225" width="470" height="97" rx="20" fill="#F1F7FF" stroke="#BFDBF5" stroke-width="2"/>
+<circle cx="1300" cy="271" r="25" fill="#D9EAFC"/>
+<text x="1300" y="279" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#1E64A2" letter-spacing="0">W</text>
+<text x="1345" y="268" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="27" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">DWD + SMARD</text>
+<text x="1345" y="300" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Weather + electricity prices</text>
+<rect x="125" y="374" width="1550" height="214" rx="25" fill="#EEF8FA" stroke="#B7DBDC" stroke-width="2"/>
+<text x="166" y="417" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="770" text-anchor="start" fill="#127E7C" letter-spacing="2">02  DATA ENGINEERING</text>
+<text x="490" y="417" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="730" text-anchor="start" fill="#183E47" letter-spacing="0">etl_pipeline.py  ·  orchestrates the processing workflow</text>
+<path d="M 638 508 H 676" fill="none" stroke="#2F9295" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 1111 508 H 1149" fill="none" stroke="#2F9295" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="162" y="443" width="475" height="119" rx="17" fill="#FFFFFF" stroke="#D2E7E7" stroke-width="2"/>
+<rect x="675" y="443" width="436" height="119" rx="17" fill="#FFFFFF" stroke="#D2E7E7" stroke-width="2"/>
+<rect x="1149" y="443" width="485" height="119" rx="17" fill="#FFFFFF" stroke="#D2E7E7" stroke-width="2"/>
+<text x="183" y="474" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="755" text-anchor="start" fill="#124E63" letter-spacing="0">01  INGEST + ALIGN</text>
+<text x="183" y="504" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="640" text-anchor="start" fill="#213D53" letter-spacing="0">xz_to_parquet.py + API clients</text>
+<text x="183" y="535" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" fill="#63788A" letter-spacing="0">Sensor timestamps + external data</text>
+<text x="699" y="474" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="755" text-anchor="start" fill="#124E63" letter-spacing="0">02  CLEAN + VALIDATE</text>
+<text x="699" y="504" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="640" text-anchor="start" fill="#213D53" letter-spacing="0">clean_telemetry.py</text>
+<text x="699" y="535" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" fill="#63788A" letter-spacing="0">Gaps, quality and physical checks</text>
+<text x="1172" y="474" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="755" text-anchor="start" fill="#124E63" letter-spacing="0">03  AGGREGATE + PUBLISH</text>
+<text x="1172" y="504" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="640" text-anchor="start" fill="#213D53" letter-spacing="0">feature_pipeline.py</text>
+<text x="1172" y="535" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="400" text-anchor="start" fill="#63788A" letter-spacing="0">15-min Parquet + traceable outputs</text>
+<path d="M 900 588 V 620" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="448" y="629" width="910" height="95" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="445" y="623" width="910" height="95" rx="20" fill="#F0F9F3" stroke="#B7E1C4" stroke-width="2"/>
+<circle cx="495" cy="669" r="25" fill="#DDF3E4"/>
+<text x="495" y="677" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#25844D" letter-spacing="0">DB</text>
+<text x="540" y="666" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="29" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">data/processed/</text>
+<text x="540" y="698" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Cleaned Parquet · EDA/ML features · manifest.json</text>
+<path d="M 900 718 V 745 H 350 V 765" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 900 718 V 765" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="80" y="733" width="267" height="37" rx="18" fill="#F6EDFF" stroke="#F6EDFF" stroke-width="0"/>
+<text x="213.5" y="758" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="750" text-anchor="middle" fill="#7753AA" letter-spacing="0.8">03  EXPLORE + TRAIN</text>
+<rect x="83" y="775" width="530" height="96" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="80" y="769" width="530" height="96" rx="20" fill="#FFF9EC" stroke="#ECD6AE" stroke-width="2"/>
+<circle cx="130" cy="815" r="25" fill="#FEEDD0"/>
+<text x="130" y="823" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#A76812" letter-spacing="0">EDA</text>
+<text x="175" y="812" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">notebooks/EDA/</text>
+<text x="175" y="844" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Machine, solar, grid + price patterns</text>
+<rect x="688" y="775" width="1035" height="96" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="685" y="769" width="1035" height="96" rx="20" fill="#F6F2FF" stroke="#D9CEF4" stroke-width="2"/>
+<circle cx="735" cy="815" r="25" fill="#E9E0FF"/>
+<text x="735" y="823" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#7450B0" letter-spacing="0">ML</text>
+<text x="780" y="812" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="28" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">training_pipeline.py</text>
+<text x="780" y="844" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Runs forecasts → anomaly review → MILP; tracks models in MLflow</text>
+<path d="M 1190 865 V 892 H 317 V 914" fill="none" stroke="#7B69AE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 602 970 H 638" fill="none" stroke="#7B69AE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 1163 970 H 1201" fill="none" stroke="#7B69AE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="83" y="920" width="521" height="116" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="80" y="914" width="521" height="116" rx="20" fill="#FFFFFF" stroke="#DDD5F2" stroke-width="2"/>
+<circle cx="130" cy="960" r="25" fill="#EFEAFF"/>
+<text x="130" y="968" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#755EAD" letter-spacing="0">F</text>
+<text x="175" y="957" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">train_forecasting.py</text>
+<text x="175" y="989" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">15-min machine + solar forecasts</text>
+<text x="175" y="1015" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#708295" letter-spacing="0">LightGBM / Ridge · saved test predictions</text>
+<rect x="642" y="920" width="523" height="116" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="639" y="914" width="523" height="116" rx="20" fill="#FFFFFF" stroke="#DDD5F2" stroke-width="2"/>
+<circle cx="689" cy="960" r="25" fill="#EFEAFF"/>
+<text x="689" y="968" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#755EAD" letter-spacing="0">A</text>
+<text x="734" y="957" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">train_anomaly.py</text>
+<text x="734" y="989" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Regime-aware advisory review</text>
+<text x="734" y="1015" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#708295" letter-spacing="0">Quality states + review episodes</text>
+<rect x="1204" y="920" width="519" height="116" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="1201" y="914" width="519" height="116" rx="20" fill="#FFFFFF" stroke="#DDD5F2" stroke-width="2"/>
+<circle cx="1251" cy="960" r="25" fill="#EFEAFF"/>
+<text x="1251" y="968" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#755EAD" letter-spacing="0">O</text>
+<text x="1296" y="957" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="23" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">scheduler.py + constraints.py</text>
+<text x="1296" y="989" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Two-job MILP scheduling</text>
+<text x="1296" y="1015" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#708295" letter-spacing="0">Cost, grid and CO₂ comparisons</text>
+<path d="M 339 1030 V 1046 H 900 V 1073" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 900 1030 V 1073" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 1460 1030 V 1046 H 900" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 900 1073 V 1085" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="348" y="1094" width="1110" height="92" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="345" y="1088" width="1110" height="92" rx="20" fill="#EFF9F2" stroke="#AEDDC0" stroke-width="2"/>
+<circle cx="395" cy="1134" r="25" fill="#DCF1E3"/>
+<text x="395" y="1142" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#20824E" letter-spacing="0">R</text>
+<text x="440" y="1131" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="27" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">reports/ml_short_term/application_runs/</text>
+<text x="440" y="1163" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Version-matched CSV, JSON + Parquet · historical evidence for the apps</text>
+<path d="M 900 1180 V 1195 H 451 V 1212" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<path d="M 900 1180 V 1195 H 1346 V 1212" fill="none" stroke="#71879c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="83" y="1219" width="742" height="119" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="80" y="1213" width="742" height="119" rx="20" fill="#EBF7F6" stroke="#9CD8CF" stroke-width="2"/>
+<circle cx="130" cy="1259" r="25" fill="#D1EFEB"/>
+<text x="130" y="1267" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#067B73" letter-spacing="0">WEB</text>
+<text x="175" y="1256" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">PUBLIC  ·  Streamlit Cloud</text>
+<text x="175" y="1288" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">app/streamlit_app.py · reports shown directly</text>
+<text x="175" y="1314" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#708295" letter-spacing="0">greenforge-ai.streamlit.app · no backend needed</text>
+<rect x="981" y="1219" width="742" height="119" rx="20" fill="#E7ECF2" stroke="#E7ECF2" stroke-width="0"/>
+<rect x="978" y="1213" width="742" height="119" rx="20" fill="#EFF3FA" stroke="#C2D2E8" stroke-width="2"/>
+<circle cx="1028" cy="1259" r="25" fill="#DEE9F7"/>
+<text x="1028" y="1267" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="19" font-weight="750" text-anchor="middle" fill="#426EAB" letter-spacing="0">DO</text>
+<text x="1073" y="1256" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="725" text-anchor="start" fill="#162D42" letter-spacing="0">LOCAL  ·  Docker Compose</text>
+<text x="1073" y="1288" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#52687A" letter-spacing="0">Dockerfile + compose.yaml · API + dashboard</text>
+<text x="1073" y="1314" font-family="Inter, Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#708295" letter-spacing="0">app/main.py · MLflow setup + optional tracking UI</text>
+</svg>
