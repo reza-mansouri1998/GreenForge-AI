@@ -1,0 +1,3 @@
+Dataset,Assessed_intervals,Review_intervals,Review_pct,Scored_regimes,Calibration_budget_pct
+TEC_48S,6584,44,0.6682867557715675,"lower_load, higher_load",2.0
+IPE_PV,1652,53,3.208232445520581,"lower_load, higher_load",2.0

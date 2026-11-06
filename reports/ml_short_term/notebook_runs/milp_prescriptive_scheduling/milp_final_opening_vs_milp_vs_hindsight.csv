@@ -1,0 +1,4 @@
+Strategy,Mean cost (€ / 2 jobs),Total cost (€)
+🌅 At opening · 08:00,0.0933283281099977,1.0266116092099746
+⚙️ Forecast-informed MILP,0.04318691907819691,0.475056109860166
+🔭 Hindsight · reference,0.029891757691337614,0.32880933460471373

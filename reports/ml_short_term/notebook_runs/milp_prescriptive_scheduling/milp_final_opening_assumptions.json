@@ -1,0 +1,64 @@
+{
+  "study": "Historical SPARK/SMARD what-if: assumed 08:00 shift vs MILP vs Hindsight",
+  "strategies": [
+    "assumed opening 08:00",
+    "forecast-informed MILP",
+    "hindsight reference"
+  ],
+  "work_start": "08:00",
+  "work_end": "18:00",
+  "job_power_kw": [
+    1.2,
+    1.2
+  ],
+  "job_duration_slots": [
+    4,
+    4
+  ],
+  "job_sequence": "two_back_to_back_jobs_without_idle_gap",
+  "total_illustrative_work_kwh": 2.4,
+  "early_start_assumption": [
+    "08:00",
+    "09:00"
+  ],
+  "solar_scenario_weights": [
+    0.15,
+    0.35,
+    0.5
+  ],
+  "carbon_preference_eur_per_kg_assumed": 0.02,
+  "UBA_2024_annual_factor_kg_CO2_per_kwh": 0.363,
+  "UBA_reference": "https://www.umweltbundesamt.de/themen/co2-emissionen-pro-kilowattstunde-strom-2024",
+  "min_pv_coverage": 0.8,
+  "matched_days": 11,
+  "skipped_dates": {
+    "incomplete forecast": 0,
+    "unavailable day": 0,
+    "invalid observations": 0
+  },
+  "mean_saving_vs_08_eur_per_two_jobs": 0.05014140903180078,
+  "mean_grid_reduction_vs_08_kwh_per_two_jobs": 0.2095063131313131,
+  "mean_co2_reduction_vs_08_kg_per_two_jobs": 0.07605079166666667,
+  "mean_regret_vs_hindsight_eur_per_two_jobs": 0.013295161386859294,
+  "hindsight_is_not_operational": true,
+  "hindsight_uses_future_recorded_pv": true,
+  "pv_data_ends_april_2024": true,
+  "forecast_horizon_minutes": 15,
+  "forecast_available_at": "08:00 (assuming the 07:45–08:00 reading is ready immediately)",
+  "forecast_predicted_interval": "08:00–08:15",
+  "forecast_source_file": "reports\\ml_short_term\\notebook_runs\\pv_predictions_15min.csv",
+  "forecast_prediction_column": "forecast_cv_alternative",
+  "notebook_02_advisory_file": "reports\\ml_short_term\\notebook_runs\\anomaly_review_15min.parquet",
+  "notebook_02_monitoring_cutoff": "available_at <= 08:00 and interval_end <= 08:00",
+  "notebook_02_lookback_hours": 24,
+  "notebook_02_max_age_minutes": 60,
+  "notebook_02_warnings_are_advisory_only": true,
+  "notebook_02_scores_change_milp_objective": false,
+  "remaining_39_intervals_use_prior_pv_profiles": true,
+  "full_workday_forecast_available": false,
+  "electricity_prices_are_archived_wholesale": true,
+  "published_shift_start_is_verified": false,
+  "factory_work_orders_are_verified": false,
+  "PV_electrical_sharing_is_verified": false,
+  "actual_factory_bill_savings_are_verified": false
+}
