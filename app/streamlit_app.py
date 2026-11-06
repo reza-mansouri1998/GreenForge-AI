@@ -1,16 +1,22 @@
-"""GreenForge AI — historical industrial energy intelligence dashboard.
-
-Run the existing FastAPI server first, then:
-    python -m streamlit run app/streamlit_app.py --server.address 127.0.0.1 --server.port 8501
-
-The dashboard reads the read-only historical FastAPI endpoints. It never runs
-ETL, training, anomaly fitting, MLflow model loading, or MILP optimization.
-Forecast values are from the held-out 2024 test report, not live predictions.
 """
+Standalone mode: reads reports/ml_short_term/application_runs directly, no API or export.
+Optional API mode: set GREENFORGE_API_URL to your existing FastAPI base URL.
+The dashboard never runs ETL, training, model inference, or MILP optimization.
+Forecast values are retrospective held-out 2024 results, not live predictions.
+"""
+
+# to run locally (FASTAPI must be running before starting Streamlit):
+
+#    $env:GREENFORGE_API_URL = "http://127.0.0.1:8000"
+#    python -m streamlit run app/streamlit_app.py
+
+
 
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
+import json
 import os
 from urllib.parse import urlsplit
 
@@ -20,7 +26,22 @@ import streamlit as st
 import requests
 
 
-API_DEFAULT = os.getenv("GREENFORGE_API_URL", "http://127.0.0.1:8000")
+# No API URL => read existing completed application reports from the project tree.
+# With GREENFORGE_API_URL, use the original FastAPI-backed mode.
+API_DEFAULT = os.getenv("GREENFORGE_API_URL", "").strip()
+REPORT_BASE = "application-reports"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+REPORTS_DIR = PROJECT_ROOT / "reports" / "ml_short_term" / "application_runs"
+STAGES = (
+    "energy_forecasting",
+    "anomaly_detection_degradation",
+    "milp_prescriptive_scheduling",
+)
+REPORT_SYSTEMS = ("TEC_48S", "IPE_PV")
+TIMESTAMP_COLUMNS = {
+    "WsDateTime", "target_time", "available_at", "interval_end",
+    "start", "end_exclusive",
+}
 SYSTEM_NAMES = {
     "TEC_48S": "TEC_48S · Machine",
     "IPE_PV": "IPE_PV · Solar PV",
@@ -86,10 +107,181 @@ def api_get(base_url: str, endpoint: str, query: tuple[tuple[str, object], ...] 
     return document
 
 
+@st.cache_data(show_spinner=False, max_entries=1)
+def _find_latest_complete_run() -> tuple[str, dict[str, Path]] | None:
+    """Select a common, complete pipeline run, matching the FastAPI contract."""
+    folders = {stage: REPORTS_DIR / stage for stage in STAGES}
+    if not all(folder.is_dir() for folder in folders.values()):
+        return None
+    common: set[str] | None = None
+    for folder in folders.values():
+        names = {path.name for path in folder.iterdir() if path.is_dir()}
+        common = names if common is None else common & names
+    for label in sorted(common or (), reverse=True):
+        paths = {stage: folder / label for stage, folder in folders.items()}
+        forecast, anomaly, milp = (paths[stage] for stage in STAGES)
+        expected = [
+            forecast / "run_summary.json",
+            forecast / "forecast_summary.csv",
+            anomaly / "run_summary.json",
+            anomaly / "anomaly_review_summary.csv",
+            anomaly / "anomaly_data_quality.csv",
+            anomaly / "anomaly_review_episodes.csv",
+            milp / "milp_summary.json",
+            milp / "milp_assumptions.json",
+            milp / "milp_daily_decisions.csv",
+            *(forecast / f"{system}_predictions_15min.csv" for system in REPORT_SYSTEMS),
+            *(anomaly / f"{system}_monitoring_15min.parquet" for system in REPORT_SYSTEMS),
+        ]
+        if not all(file.is_file() for file in expected):
+            continue
+        try:
+            forecast_json = json.loads(expected[0].read_text(encoding="utf-8"))
+            anomaly_json = json.loads(expected[2].read_text(encoding="utf-8"))
+            run_id = forecast_json.get("run_id")
+            if run_id and run_id == anomaly_json.get("run_id") and label.endswith(run_id[:8]):
+                return label, paths
+        except (ValueError, OSError, TypeError, KeyError):
+            continue
+    return None
+
+
+def _require_report_run() -> tuple[str, dict[str, Path]]:
+    selected = _find_latest_complete_run()
+    if selected is None:
+        raise APIUnavailable(
+            "No complete three-stage application run found under "
+            "reports/ml_short_term/application_runs. Ensure matching run folders "
+            "exist and their report CSV, JSON and Parquet files are present."
+        )
+    return selected
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def _report_json(path: Path) -> dict:
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise APIUnavailable(f"Cannot read application report: {path.name}") from exc
+    if not isinstance(result, dict):
+        raise APIUnavailable(f"Unexpected JSON report type: {path.name}")
+    return result
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def _report_table(path: Path) -> pd.DataFrame:
+    try:
+        return pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    except (OSError, ValueError, ImportError) as exc:
+        raise APIUnavailable(
+            f"Cannot read application report {path.name}. Parquet reports require pyarrow."
+        ) from exc
+
+
+def _report_records(frame: pd.DataFrame) -> list[dict]:
+    """Keep timestamp semantics consistent with FastAPI's historical endpoints."""
+    result = frame.copy()
+    for column in result.columns:
+        if pd.api.types.is_datetime64_any_dtype(result[column]):
+            result[column] = result[column].dt.strftime("%Y-%m-%dT%H:%M:%S")
+        elif column in TIMESTAMP_COLUMNS and pd.api.types.is_string_dtype(result[column]):
+            result[column] = result[column].str.replace(" ", "T", n=1, regex=False)
+    return json.loads(result.to_json(orient="records"))
+
+
+def _report_filter(frame: pd.DataFrame, day: str | None, column: str) -> pd.DataFrame:
+    if day is None:
+        return frame
+    try:
+        wanted = date.fromisoformat(day).isoformat()
+    except (ValueError, TypeError) as exc:
+        raise APIUnavailable("Date must use YYYY-MM-DD.") from exc
+    if column not in frame.columns:
+        raise APIUnavailable(f"Missing {column} column in report.")
+    return frame.loc[frame[column].astype(str).str.slice(0, 10).eq(wanted)]
+
+
+def _reports_get(endpoint: str, params: dict[str, object]) -> dict:
+    """Read-only equivalent to the historical FastAPI GET routes, without a server."""
+    if endpoint == "/health":
+        return {"status": "ok", "service": "greenforge-direct-application-reports"}
+    if endpoint == "/api/v1/status":
+        selected = _find_latest_complete_run()
+        if selected is None:
+            return {"ready": False, "detail": "No matching complete application reports found."}
+        _, paths = selected
+        report = _report_json(paths["energy_forecasting"] / "run_summary.json")
+        return {"ready": True, "run_id": report["run_id"],
+                "mode": "historical_decision_support", "forecast_horizon_minutes": 15}
+
+    label, paths = _require_report_run()
+    forecast = paths["energy_forecasting"]
+    anomaly = paths["anomaly_detection_degradation"]
+    milp = paths["milp_prescriptive_scheduling"]
+    limit = params.get("limit", 96)
+    if not isinstance(limit, int) or not 1 <= limit <= 500:
+        raise APIUnavailable("Row limit must be 1–500.")
+    day = params.get("date")
+    if endpoint == "/api/v1/overview":
+        f = _report_json(forecast / "run_summary.json")
+        a = _report_json(anomaly / "run_summary.json")
+        m = _report_json(milp / "milp_summary.json")
+        return {"run_id": f["run_id"], "report_folder": label,
+                "mode": "historical_decision_support", "forecast_horizon_minutes": 15,
+                "forecasting": f["systems"], "anomaly_monitoring": a["systems"],
+                "historical_optimization": m, "not_live_factory_control": True}
+    if endpoint == "/api/v1/models":
+        f = _report_json(forecast / "run_summary.json")
+        # No inference is provided, even when the reports include MLflow URIs.
+        return {"run_id": f["run_id"], "models": f["systems"],
+                "model_source": "Saved model evaluation metadata from local reports; no cloud inference."}
+    if endpoint.startswith("/api/v1/forecasts/"):
+        system = endpoint.removeprefix("/api/v1/forecasts/")
+        if system not in REPORT_SYSTEMS:
+            raise APIUnavailable("Unknown forecast system.")
+        frame = _report_filter(_report_table(forecast / f"{system}_predictions_15min.csv"), day, "target_time")
+        return {"system": system, "mode": "historical_held_out_test",
+                "forecast_horizon_minutes": 15, "total_matching_rows": len(frame),
+                "rows": _report_records(frame.tail(limit))}
+    if endpoint == "/api/v1/anomalies":
+        return {"mode": "historical_advisory_monitoring",
+                "summary": _report_records(_report_table(anomaly / "anomaly_review_summary.csv")),
+                "data_quality": _report_records(_report_table(anomaly / "anomaly_data_quality.csv")),
+                "confirmed_fault_labels_available": False}
+    if endpoint == "/api/v1/anomalies/episodes":
+        frame = _report_table(anomaly / "anomaly_review_episodes.csv")
+        system = params.get("system")
+        if system is not None:
+            if system not in REPORT_SYSTEMS:
+                raise APIUnavailable("Unknown anomaly system.")
+            frame = frame.loc[frame["system"].eq(system)]
+        return {"total_matching_rows": len(frame), "rows": _report_records(frame.tail(limit))}
+    if endpoint.startswith("/api/v1/anomalies/") and endpoint.endswith("/monitoring"):
+        system = endpoint.removeprefix("/api/v1/anomalies/").removesuffix("/monitoring")
+        if system not in REPORT_SYSTEMS:
+            raise APIUnavailable("Unknown monitoring system.")
+        frame = _report_filter(_report_table(anomaly / f"{system}_monitoring_15min.parquet"), day, "WsDateTime")
+        return {"system": system, "mode": "historical_advisory_monitoring",
+                "confirmed_faults": None, "total_matching_rows": len(frame),
+                "rows": _report_records(frame.tail(limit))}
+    if endpoint == "/api/v1/optimization":
+        return {"mode": "historical_hypothetical_two_job_milp",
+                "summary": _report_json(milp / "milp_summary.json"),
+                "assumptions": _report_json(milp / "milp_assumptions.json"),
+                "realized_factory_savings": False}
+    if endpoint == "/api/v1/optimization/days":
+        frame = _report_filter(_report_table(milp / "milp_daily_decisions.csv"), day, "date")
+        return {"mode": "historical_hypothetical_two_job_milp",
+                "total_matching_days": len(frame), "rows": _report_records(frame)}
+    raise APIUnavailable("Unknown historical report endpoint.")
+
+
 def load(base_url: str, endpoint: str, **params: object) -> dict:
     """Streamlit-friendly wrapper: use query keys consistently for caching."""
     query = tuple(sorted((key, value) for key, value in params.items() if value is not None))
     try:
+        if base_url == REPORT_BASE:
+            return _reports_get(endpoint, dict(query))
         return api_get(base_url, endpoint, query)
     except APIUnavailable as exc:
         st.error(str(exc), icon="⚠️")
@@ -184,7 +376,7 @@ def _render_table(frame: pd.DataFrame, *, height: int = 340) -> None:
     if frame.empty:
         st.info("No rows match the current selection.")
     else:
-        st.dataframe(frame, use_container_width=True, hide_index=True, height=height)
+        st.dataframe(frame, width="stretch", hide_index=True, height=height)
 
 
 def _download(frame: pd.DataFrame, filename: str, label: str = "Download displayed rows as CSV") -> None:
@@ -226,7 +418,7 @@ def _series_chart(frame: pd.DataFrame, x: str, series: list[tuple[str, str, str]
     )
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor="rgba(127,137,148,.16)", zerolinecolor="rgba(127,137,148,.23)")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
 def overview_page(base: str, data: dict) -> None:
@@ -413,7 +605,7 @@ def anomaly_page(base: str, data: dict) -> None:
             st.stop()
     monitor_data = load(base, f"/api/v1/anomalies/{system}/monitoring", limit=limit, date=date_query)
     monitoring = records(monitor_data)
-    st.caption(f"{monitor_data.get('total_matching_rows', 0):,} matching intervals; displaying {len(monitoring):,} rows.")
+    st.caption(f"{monitor_data.get('total_matching_rows', 0):,} matching monitoring intervals; displaying {len(monitoring):,} rows.")
     if not monitoring.empty:
         if "WsDateTime" in monitoring:
             monitoring["WsDateTime"] = pd.to_datetime(monitoring["WsDateTime"], errors="coerce")
@@ -492,7 +684,10 @@ def models_page(base: str, data: dict) -> None:
             b.metric("Test R²", number(item.get("r2"), 4))
             c.metric("Test RMSE", f"{number(item.get('rmse_kw'), 4)} kW")
             d.metric("Reload verified", "Yes" if item.get("model_reload_verified") else "No")
-            st.caption(f"MLflow URI: {item.get('model_uri', '—')}")
+            if base == REPORT_BASE:
+                st.caption("Read-only evaluation record; MLflow inference is not run by this dashboard.")
+            else:
+                st.caption(f"MLflow URI: {item.get('model_uri', '—')}")
             st.caption(
                 f"Test observations: {int(item.get('testing_rows') or 0):,} · "
                 f"Training observations: {int(item.get('training_rows') or 0):,} · "
@@ -504,7 +699,10 @@ def models_page(base: str, data: dict) -> None:
             if ma is not None and pa is not None and float(ma) >= float(pa):
                 st.caption("Persistence wins on overall matched MAE; active-period and RMSE results provide additional context.")
             if system == "IPE_PV":
-                st.caption("API model inference must apply non-negative clipping, matching production report postprocessing.")
+                if base == REPORT_BASE:
+                    st.caption("The original Ridge pipeline applied non-negative clipping before saving these solar forecasts. No inference runs in this dashboard.")
+                else:
+                    st.caption("API model inference must apply non-negative clipping, matching production report postprocessing.")
             with st.expander("Full model evaluation record"):
                 st.json(item)
 
@@ -519,54 +717,68 @@ def models_page(base: str, data: dict) -> None:
     st.markdown(
         """- **Forecast horizon:** next 15 minutes, not day-ahead.
 - **Model selection:** chronological training-only cross-validation.
-- **MLflow:** locally logged model URIs, without production aliases.
+- **MLflow:** this dashboard does not load MLflow models or run inference.
 - **Anomaly output:** advisory reviews; no verified failure labels.
 - **MILP:** archived wholesale prices, hypothetical jobs, and assumed PV sharing.
 - **Decision-time contract:** historical zero-ingestion-delay assumption; live latency not established.
-- **Model inference:** available through the FastAPI POST endpoint, not triggered by this dashboard.
 """
     )
+    if base == REPORT_BASE:
+        st.caption("This dashboard reads stored application reports directly; it does not run model inference or MILP optimization.")
+    else:
+        st.caption("The separately hosted FastAPI POST endpoint can execute model inference; this dashboard displays stored results.")
     st.caption(str(model_data.get("model_source", "")))
 
 
 def main() -> None:
     _style()
+    # With no API URL, use the historical application report files directly.
+    # No training, model inference, remote requests or optimization is performed.
+    reports_mode = not API_DEFAULT
+    base = REPORT_BASE if reports_mode else _validated_base_url(API_DEFAULT)
     with st.sidebar:
         st.markdown("## ⚡ GreenForge AI")
         st.caption("Industrial energy intelligence")
         page = st.radio("Explore", PAGES, label_visibility="collapsed")
         st.divider()
-        st.markdown("**Connection**")
-        api_raw = st.text_input("FastAPI URL", value=API_DEFAULT,
-                                help="Local FastAPI server; do not include /docs or /api/v1.")
-        if st.button("↻ Refresh report data", use_container_width=True):
+        st.markdown("**Data source**")
+        if reports_mode:
+            st.caption("2024 historical application reports · read-only · no API required")
+        else:
+            st.caption("FastAPI: configured by the deployment owner")
+        if st.button("↻ Refresh report data", width="stretch"):
             api_get.clear()
+            _find_latest_complete_run.clear()
+            _report_json.clear()
+            _report_table.clear()
             st.rerun()
-        st.caption("API data cached for 45 seconds. Dashboard is read-only.")
+        st.caption("Historical reports only; data and models are not retrained.")
 
     try:
-        base = _validated_base_url(api_raw)
-        health = api_get(base, "/health")
-        status = api_get(base, "/api/v1/status")
+        if reports_mode:
+            health = _reports_get("/health", {})
+            status = _reports_get("/api/v1/status", {})
+        else:
+            health = api_get(base, "/health")
+            status = api_get(base, "/api/v1/status")
     except APIUnavailable as exc:
         st.error(str(exc), icon="⚠️")
-        st.info("Start the FastAPI server in a different VS Code terminal:\n\n"
-                "`python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`")
+        if not reports_mode:
+            st.info("Ensure the configured FastAPI server is running and has report access.")
         st.stop()
         return
 
     with st.sidebar:
         if health.get("status") == "ok" and status.get("ready"):
-            st.success("API connected · reports ready")
+            st.success("Application reports ready" if reports_mode else "API connected · reports ready")
         else:
-            st.warning("API online · reports incomplete")
+            st.warning("Historical reports are incomplete")
         st.caption("Mode: 2024 historical replay")
         if status.get("run_id"):
             st.caption(f"Run: {str(status['run_id'])[:12]}…")
 
     if not status.get("ready"):
-        st.warning(status.get("detail", "No complete historical report run has been found."))
-        st.info("Run the complete training pipeline first, then refresh the dashboard.")
+        st.warning(status.get("detail", "No completed historical reports found."))
         st.stop()
         return
 
@@ -583,7 +795,10 @@ def main() -> None:
         models_page(base, overview)
 
     st.divider()
-    st.caption("GreenForge AI · 2024 retrospective decision support · no live factory control or verified realized savings")
+    if reports_mode:
+        st.caption("GreenForge AI · Historical application reports · no API inference, live telemetry, confirmed faults, or realized savings")
+    else:
+        st.caption("GreenForge AI · 2024 retrospective decision support · no live factory control or verified realized savings")
 
 
 if __name__ == "__main__":
